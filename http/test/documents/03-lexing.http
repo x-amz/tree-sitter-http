@@ -1,0 +1,14 @@
+### What a line is, is a precedence decision
+POST https://api.example.com/echo
+Content-Type: text/plain
+
+# a body line outranks a comment prefix, so this is body
+HTTP/1.1 200 OK — and a body line outranks a status line, so is this
+### only a separator ends a body from the inside
+
+PURGE https://api.example.com/cache
+X-Note: PURGE is not a method, so the target is PURGE and the rest is a trailer
+
+GET https://api.example.com/widgets
+Accept: application/json
+this line has no colon, so it is plain, not a new request

@@ -1,0 +1,33 @@
+{
+  "grammars": [
+    {
+      "name": "http",
+      "camelcase": "Http",
+      "title": "HTTP file",
+      "scope": "source.http",
+      "path": "http",
+      "file-types": ["http", "rest"],
+      "injection-regex": "^http$",
+      "highlights": "queries/http/highlights.scm",
+      "injections": "queries/http/injections.scm",
+      "external-files": ["common/scanner.h"]
+    },
+    {
+      "name": "http_message",
+      "camelcase": "HttpMessage",
+      "title": "HTTP message",
+      "scope": "source.http-message",
+      "path": "http_message",
+      "injection-regex": "^(http_message|message/http)$",
+      "highlights": "queries/http_message/highlights.scm",
+      "injections": "queries/http_message/injections.scm",
+      "external-files": ["common/scanner.h"]
+    }
+  ],
+  "metadata": {
+    "version": "0.0.0",
+    "description": "tree-sitter grammars for .http files and message/http wire messages",
+    "authors": [{ "name": "X-AMZ LLC", "email": "support@x-amz.dev" }]
+  },
+  "bindings": { "c": false, "go": false, "node": false, "python": false, "rust": false, "swift": true }
+}

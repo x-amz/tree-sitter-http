@@ -1,0 +1,8 @@
+HTTP/1.1 200 OK
+Date: Mon, 31 Aug 2026 17:03:52 GMT
+Content-Type: text/csv
+Connection: close
+
+id,name,live
+1,gauge,true
+2,dial,false

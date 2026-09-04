@@ -1,0 +1,38 @@
+{
+  "name": "tree-sitter-http",
+  "version": "0.0.0",
+  "description": "tree-sitter grammars for .http files and message/http wire messages",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/x-amz/tree-sitter-http.git"
+  },
+  "keywords": ["tree-sitter", "parser", "http", "lexer"],
+  "files": [
+    "common",
+    "http/grammar.js",
+    "http/src",
+    "http_message/grammar.js",
+    "http_message/src",
+    "queries",
+    "tree-sitter.json"
+  ],
+  "workspaces": [
+    "bindings/web",
+    "web"
+  ],
+  "scripts": {
+    "generate": "cd http && tree-sitter generate --abi 14 && cd ../http_message && tree-sitter generate --abi 14",
+    "test": "cd http && tree-sitter test && cd ../http_message && tree-sitter test",
+    "build": "npm run build --workspaces",
+    "check": "npm run check --workspaces --if-present"
+  },
+  "devDependencies": {
+    "tree-sitter-cli": "0.25.10"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "allowScripts": { "tree-sitter-cli": true }
+}

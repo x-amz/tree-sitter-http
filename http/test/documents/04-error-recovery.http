@@ -1,0 +1,10 @@
+### Recovery: the parser inserts what is missing
+GET https://api.example.com/widgets/{{id
+
+### An ERROR node: a declaration with nothing to assign
+@host
+
+### An ERROR node: the file ends on a colon-less line with no newline
+GET https://api.example.com/widgets
+Accept: application/json
+this last line is neither a header nor a request

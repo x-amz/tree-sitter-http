@@ -1,0 +1,129 @@
+==================
+Standalone response
+==================
+HTTP/1.1 200 OK
+Content-Type: text/plain
+
+hello
+
+---
+
+(document
+  (response
+    (version)
+    (status_code)
+    (status_text)
+    (header
+      (header_name)
+      (value
+        (value_text)))
+    (raw_body)))
+
+==================
+Response after a bodiless request
+==================
+GET https://example.com/status/204
+
+HTTP/1.1 204 No Content
+Date: Sat, 30 Aug 2026 00:00:00 GMT
+
+---
+
+(document
+  (request
+    (method)
+    (target
+      (url_text)))
+  (response
+    (version)
+    (status_code)
+    (status_text)
+    (header
+      (header_name)
+      (value
+        (value_text)))))
+
+==================
+Response after a request with a body
+==================
+POST https://example.com/anything
+Content-Type: application/json
+
+{"a": 1}
+
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+  "json": {"a": 1}
+}
+
+---
+
+(document
+  (request
+    (method)
+    (target
+      (url_text))
+    (header
+      (header_name)
+      (value
+        (value_text)))
+    (json_body))
+  (response
+    (version)
+    (status_code)
+    (status_text)
+    (header
+      (header_name)
+      (value
+        (value_text)))
+    (json_body)))
+
+==================
+Status without reason, HTTP/2
+==================
+HTTP/2 404
+
+---
+
+(document
+  (response
+    (version)
+    (status_code)))
+
+==================
+A response body never opens with a status line either
+==================
+GET https://example.com/a
+
+HTTP/1.1 200 OK
+
+HTTP/1.1 201 Created
+
+---
+
+(document
+  (request
+    (method)
+    (target
+      (url_text)))
+  (response
+    (version)
+    (status_code)
+    (status_text))
+  (response
+    (version)
+    (status_code)
+    (status_text)))
+
+==================
+A bare version is a response
+==================
+HTTP/1.1
+
+---
+
+(document
+  (response
+    (version)))

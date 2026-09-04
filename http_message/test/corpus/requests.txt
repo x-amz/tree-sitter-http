@@ -1,0 +1,210 @@
+==================
+Method, target, version
+==================
+GET /anything HTTP/1.1
+
+---
+
+(document
+  (request
+    (method)
+    (target
+      (url_text))
+    (version)))
+
+==================
+Methods stay case-insensitive
+==================
+get /a HTTP/1.1
+
+---
+
+(document
+  (request
+    (method)
+    (target
+      (url_text))
+    (version)))
+
+==================
+An implied GET is an error on the wire
+:error
+==================
+https://example.com/anything
+
+---
+
+==================
+An unknown method is an error, not a target
+:error
+==================
+PURGE https://example.com/b
+
+---
+
+==================
+Literal braces stay in the target
+==================
+GET /users/{{id}}/posts HTTP/1.1
+
+---
+
+(document
+  (request
+    (method)
+    (target
+      (url_text))
+    (version)))
+
+==================
+Literal braces stay in a header value
+==================
+GET / HTTP/1.1
+X-Callback: {{host}}/hook
+
+---
+
+(document
+  (request
+    (method)
+    (target
+      (url_text))
+    (version)
+    (header
+      (header_name)
+      (value
+        (value_text)))))
+
+==================
+A hash line in the header block is not a comment
+==================
+GET /anything HTTP/1.1
+Accept: */*
+# not a comment
+X-Note: value # tail
+
+---
+
+(document
+  (request
+    (method)
+    (target
+      (url_text))
+    (version)
+    (header
+      (header_name)
+      (value
+        (value_text)))
+    (plain)
+    (header
+      (header_name)
+      (value
+        (value_text)))))
+
+==================
+An indented line after the request line is plain, not a continuation
+==================
+GET /search HTTP/1.1
+  ?q=req
+Accept: text/plain
+
+---
+
+(document
+  (request
+    (method)
+    (target
+      (url_text))
+    (version)
+    (plain)
+    (header
+      (header_name)
+      (value
+        (value_text)))))
+
+==================
+Pipelined bodiless requests
+==================
+GET /a HTTP/1.1
+
+GET /b HTTP/1.1
+
+---
+
+(document
+  (request
+    (method)
+    (target
+      (url_text))
+    (version))
+  (request
+    (method)
+    (target
+      (url_text))
+    (version)))
+
+==================
+Last line without a newline
+==================
+GET /a HTTP/1.1
+Accept: */*
+---
+
+(document
+  (request
+    (method)
+    (target
+      (url_text))
+    (version)
+    (header
+      (header_name)
+      (value
+        (value_text)))))
+
+==================
+An indented fold with a colon is plain
+==================
+GET /a HTTP/1.1
+Expires: Sat,
+  01 Jan 2000 00:00:00 GMT
+Accept: */*
+
+---
+
+(document
+  (request
+    (method)
+    (target
+      (url_text))
+    (version)
+    (header
+      (header_name)
+      (value
+        (value_text)))
+    (plain)
+    (header
+      (header_name)
+      (value
+        (value_text)))))
+
+==================
+Empty value and spaced colon
+==================
+GET /a HTTP/1.1
+X-Empty:
+Name : v
+
+---
+
+(document
+  (request
+    (method)
+    (target
+      (url_text))
+    (version)
+    (header
+      (header_name))
+    (header
+      (header_name)
+      (value
+        (value_text)))))

@@ -1,0 +1,38 @@
+{
+  "name": "tree-sitter-http-web",
+  "version": "0.0.0",
+  "description": "The .http and message/http grammars as wasm, the painter that highlights them, and an <http-file> element that shows or edits one",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/x-amz/tree-sitter-http.git",
+    "directory": "bindings/web"
+  },
+  "type": "module",
+  "exports": {
+    ".": "./index.js",
+    "./element": "./element.js",
+    "./painter": "./painter.js",
+    "./grammars": "./grammars.js",
+    "./dist/*": "./dist/*"
+  },
+  "files": [
+    "*.js",
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "node make/build.js",
+    "check": "node make/release.js",
+    "prepack": "npm run build"
+  },
+  "devDependencies": {
+    "@tree-sitter-grammars/tree-sitter-xml": "0.7.0",
+    "tree-sitter-json": "0.24.8",
+    "web-tree-sitter": "0.25.10"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  }
+}

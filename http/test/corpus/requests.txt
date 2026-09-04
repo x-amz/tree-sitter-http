@@ -1,0 +1,203 @@
+==================
+Implied GET
+==================
+https://example.com/anything
+
+---
+
+(document
+  (request
+    (target
+      (url_text))))
+
+==================
+Method, target, version
+==================
+POST https://example.com/anything HTTP/1.1
+
+---
+
+(document
+  (request
+    (method)
+    (target
+      (url_text))
+    (version)))
+
+==================
+Lowercase and unknown methods
+==================
+get https://example.com/a
+
+PURGE https://example.com/b
+
+---
+
+(document
+  (request
+    (method)
+    (target
+      (url_text)))
+  (request
+    (target
+      (url_text))
+    (trailer)))
+
+==================
+Trailing text that is not a version
+==================
+GET https://example.com/a extra words
+
+---
+
+(document
+  (request
+    (method)
+    (target
+      (url_text))
+    (trailer)))
+
+==================
+Headers and comments among them
+==================
+GET https://example.com/anything
+Accept: application/json
+# a comment between headers
+X-Empty:
+User-Agent : spaced colon
+
+---
+
+(document
+  (request
+    (method)
+    (target
+      (url_text))
+    (header
+      (header_name)
+      (value
+        (value_text)))
+    (comment)
+    (header
+      (header_name))
+    (header
+      (header_name)
+      (value
+        (value_text)))))
+
+==================
+Target continuation lines
+==================
+GET https://example.com/search
+  ?q=req
+  &page=2
+Accept: text/plain
+
+---
+
+(document
+  (request
+    (method)
+    (target
+      (url_text))
+    (continuation
+      (url_text))
+    (continuation
+      (url_text))
+    (header
+      (header_name)
+      (value
+        (value_text)))))
+
+==================
+Two bodiless requests separated by a blank line
+==================
+GET https://example.com/a
+
+GET https://example.com/b
+
+---
+
+(document
+  (request
+    (method)
+    (target
+      (url_text)))
+  (request
+    (method)
+    (target
+      (url_text))))
+
+==================
+Last line without a newline
+==================
+GET https://example.com/a
+Accept: */*
+---
+
+(document
+  (request
+    (method)
+    (target
+      (url_text))
+    (header
+      (header_name)
+      (value
+        (value_text)))))
+
+==================
+Lines in the header block that are not headers
+==================
+GET https://example.com/headers
+X-A: 1
+ folded-tail
+X-B: 2
+this line has no colon
+/* not a header */
+X-C: 3
+
+---
+
+(document
+  (request
+    (method)
+    (target
+      (url_text))
+    (header
+      (header_name)
+      (value
+        (value_text)))
+    (plain)
+    (header
+      (header_name)
+      (value
+        (value_text)))
+    (plain)
+    (plain)
+    (header
+      (header_name)
+      (value
+        (value_text)))))
+
+==================
+An indented header-block line is a continuation, colons and all
+==================
+GET https://example.com/x
+Date: Mon, 01 Jan 2026
+  00:00:00 GMT
+User-Agent: foo
+
+---
+
+(document
+  (request
+    (method)
+    (target
+      (url_text))
+    (header
+      (header_name)
+      (value (value_text)))
+    (plain)
+    (header
+      (header_name)
+      (value (value_text)))))

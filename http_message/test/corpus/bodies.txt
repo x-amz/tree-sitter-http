@@ -1,0 +1,114 @@
+==================
+A body is one opaque node
+==================
+POST /anything HTTP/1.1
+Content-Type: application/json
+
+{
+  "a": 1,
+
+  "b": [1, 2]
+}
+
+---
+
+(document
+  (request
+    (method)
+    (target
+      (url_text))
+    (version)
+    (header
+      (header_name)
+      (value
+        (value_text)))
+    (body)))
+
+==================
+A separator line inside a body stays body
+==================
+POST /a HTTP/1.1
+
+first
+###
+GET /b HTTP/1.1
+
+---
+
+(document
+  (request
+    (method)
+    (target
+      (url_text))
+    (version)
+    (body)))
+
+==================
+A status line does not end a body
+==================
+POST /echo HTTP/1.1
+Content-Type: message/http
+
+GET /anything HTTP/1.1
+Host: example.com
+
+HTTP/1.1 200 OK
+
+---
+
+(document
+  (request
+    (method)
+    (target
+      (url_text))
+    (version)
+    (header
+      (header_name)
+      (value
+        (value_text)))
+    (body)))
+
+==================
+Blank lines before the body belong to the message
+==================
+PUT /a HTTP/1.1
+
+
+value
+
+---
+
+(document
+  (request
+    (method)
+    (target
+      (url_text))
+    (version)
+    (body)))
+
+==================
+A placeholder-only body is just a body
+==================
+POST /anything HTTP/1.1
+
+{{payload}}
+
+---
+
+(document
+  (request
+    (method)
+    (target
+      (url_text))
+    (version)
+    (body)))
+
+==================
+A bodiless method has no body
+:error
+==================
+GET /a HTTP/1.1
+
+{"not": "a body"}
+
+---

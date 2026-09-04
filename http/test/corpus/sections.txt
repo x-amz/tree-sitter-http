@@ -1,0 +1,109 @@
+==================
+Titled and untitled sections with a preamble
+==================
+@host = https://example.com
+# preamble comment
+
+### Login
+# @name login
+POST {{host}}/login
+
+{"user": "x"}
+
+###
+GET {{host}}/me
+
+###   Trailing title spaces   
+GET {{host}}/done
+
+---
+
+(document
+  (declaration
+    (identifier)
+    (value
+      (value_text)))
+  (comment)
+  (section
+    (separator
+      (title))
+    (directive
+      (identifier)
+      (value
+        (value_text)))
+    (request
+      (method)
+      (target
+        (placeholder
+          (reference
+            (identifier)))
+        (url_text))
+      (json_body)))
+  (section
+    (separator)
+    (request
+      (method)
+      (target
+        (placeholder
+          (reference
+            (identifier)))
+        (url_text))))
+  (section
+    (separator
+      (title))
+    (request
+      (method)
+      (target
+        (placeholder
+          (reference
+            (identifier)))
+        (url_text)))))
+
+==================
+CRLF line endings
+==================
+GET https://example.com/a
+Accept: */*
+
+HTTP/1.1 200 OK
+X: y
+
+{"crlf": true}
+
+---
+
+(document
+  (request
+    (method)
+    (target
+      (url_text))
+    (header
+      (header_name)
+      (value
+        (value_text))))
+  (response
+    (version)
+    (status_code)
+    (status_text)
+    (header
+      (header_name)
+      (value
+        (value_text)))
+    (json_body)))
+
+==================
+Two hashes is a comment, three is a separator
+==================
+
+## a two-hash comment
+##nospace
+### A section
+
+---
+
+(document
+  (comment)
+  (comment)
+  (section
+    (separator
+      title: (title))))

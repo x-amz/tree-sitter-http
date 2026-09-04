@@ -1,0 +1,82 @@
+# A tag publishes the two npm packages: tree-sitter-http, the grammar, from
+# the repository root; and tree-sitter-http-web, the grammars as wasm with the
+# painter and the element, from bindings/web after its build. Both carry
+# provenance, under npm trusted publishing: each package's settings on
+# npmjs.com name this repository and this workflow file as its publisher, and
+# the job's OIDC token is the credential. No npm token lives here.
+#
+# The tag is the version. `release.js` writes it into tree-sitter.json and
+# every package.json — all committed at 0.0.0 — and then checks the release:
+# every asset is built and named, and the tarball carries it all. Nothing is
+# bumped by hand, so nothing can be forgotten.
+#
+# The GitHub release comes first, and carries both tarballs — the same bytes
+# `npm publish` sends, `npm pack` having made them. A tag is then installable
+# without the registry:
+#
+#     npm i https://github.com/x-amz/tree-sitter-http/releases/download/<tag>/tree-sitter-http-web-<tag>.tgz
+#
+# which is how a consumer takes a built grammar before the packages exist, and
+# what a vendoring consumer copies from instead of a sibling checkout. GitHub
+# attaches the source archives itself, so the Swift package is there too.
+#
+# `npm install -g npm@latest` is here for trusted publishing, and ci.yml and
+# pages.yml run it too so no job is the only one on that npm. A current npm
+# will not run a dependency's install script unless the root package.json's
+# `allowScripts` names it — tree-sitter-cli's is what fetches the CLI binary.
+#
+# The tag is also the Swift package: SPM consumers resolve this repository by
+# tag, and nothing on the npm side builds Swift. So `swift test` gates the
+# publish — it loads both parsers, compiles every query against them, and
+# parses the documents under `<dialect>/test/documents/` that the guide's
+# check runs through the wasm build.
+name: publish
+
+on:
+  push:
+    tags: ["[0-9]+.[0-9]+.[0-9]+"]
+
+permissions:
+  contents: read
+
+jobs:
+  swift:
+    timeout-minutes: 20
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: swift --version
+      - run: swift test
+
+  publish:
+    needs: swift
+    timeout-minutes: 20
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: npm
+          registry-url: https://registry.npmjs.org
+      - uses: emscripten-core/setup-emsdk@4528d102f7230f0e7b276855c01ea1159be0e984 # v16
+        with:
+          version: 4.0.4
+      - run: npm install -g npm@latest
+      - run: npm ci
+      - run: npm test
+      - run: npm run build -w bindings/web
+      - run: node bindings/web/make/release.js "$GITHUB_REF_NAME"
+      # The release, then the registry. The registry is the step that can be
+      # unavailable to us — trusted publishing has nothing to authorise until
+      # a package exists — and the tarballs should not wait on it.
+      # `--pack-destination` writes into the directory, it does not make it.
+      - run: mkdir -p release && npm pack --pack-destination release && npm pack -w bindings/web --pack-destination release
+      - run: gh release create "$GITHUB_REF_NAME" release/*.tgz --verify-tag --generate-notes
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - run: npm publish
+      - run: npm publish -w bindings/web

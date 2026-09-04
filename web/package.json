@@ -1,0 +1,17 @@
+{
+  "name": "tree-sitter-http-guide",
+  "version": "0.0.0",
+  "private": true,
+  "description": "How a grammar reads text: the guide and debugger for the tree-sitter-http grammars, built as a static site",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "build": "node make/build.js",
+    "check": "node dist/check.js"
+  },
+  "devDependencies": {
+    "@tree-sitter-grammars/tree-sitter-xml": "0.7.0",
+    "tree-sitter-http-web": "*",
+    "tree-sitter-json": "0.24.8"
+  }
+}

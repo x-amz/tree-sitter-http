@@ -4,4 +4,8 @@ build/
 .build/
 *.dylib
 *.wasm
+bindings/web/dist/
+web/dist/
 log.html
+.claude/
+CLAUDE.md

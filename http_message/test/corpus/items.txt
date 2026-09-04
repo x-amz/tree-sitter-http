@@ -1,0 +1,25 @@
+==================
+A declaration is an error on the wire
+:error
+==================
+@host = https://example.com
+
+---
+
+==================
+A separator is an error on the wire
+:error
+==================
+###
+GET /a HTTP/1.1
+
+---
+
+==================
+A comment is an error between messages
+:error
+==================
+# a comment
+GET /a HTTP/1.1
+
+---

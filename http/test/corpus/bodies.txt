@@ -1,0 +1,349 @@
+==================
+JSON body
+==================
+POST https://example.com/anything
+Content-Type: application/json
+
+{
+  "a": 1,
+  "b": [1, 2]
+}
+
+---
+
+(document
+  (request
+    (method)
+    (target
+      (url_text))
+    (header
+      (header_name)
+      (value
+        (value_text)))
+    (json_body)))
+
+==================
+One-line JSON is JSON
+==================
+POST https://example.com/anything
+
+{"a": 1}
+
+---
+
+(document
+  (request
+    (method)
+    (target
+      (url_text))
+    (json_body)))
+
+==================
+An array root is JSON
+==================
+POST https://example.com/anything
+
+[1, 2]
+
+---
+
+(document
+  (request
+    (method)
+    (target
+      (url_text))
+    (json_body)))
+
+==================
+An array of objects is JSON
+==================
+POST https://example.com/anything
+
+[{"a": 1}]
+
+---
+
+(document
+  (request
+    (method)
+    (target
+      (url_text))
+    (json_body)))
+
+==================
+A placeholder-only body is raw
+==================
+POST https://example.com/anything
+
+{{payload}}
+
+---
+
+(document
+  (request
+    (method)
+    (target
+      (url_text))
+    (raw_body)))
+
+==================
+XML body
+==================
+POST https://example.com/anything
+Content-Type: application/xml
+
+<note><to>req</to></note>
+
+---
+
+(document
+  (request
+    (method)
+    (target
+      (url_text))
+    (header
+      (header_name)
+      (value
+        (value_text)))
+    (xml_body)))
+
+==================
+File body
+==================
+POST https://example.com/anything
+
+< ./body.json
+
+---
+
+(document
+  (request
+    (method)
+    (target
+      (url_text))
+    (file_body
+      (path))))
+
+==================
+Raw body with comment-looking lines
+==================
+POST https://example.com/anything
+
+# not a comment
+plain text
+@not = a declaration
+
+---
+
+(document
+  (request
+    (method)
+    (target
+      (url_text))
+    (raw_body)))
+
+==================
+Body ends at a separator
+==================
+POST https://example.com/a
+
+first
+###
+GET https://example.com/b
+
+---
+
+(document
+  (request
+    (method)
+    (target
+      (url_text))
+    (raw_body))
+  (section
+    (separator)
+    (request
+      (method)
+      (target
+        (url_text)))))
+
+==================
+Blank lines before the body belong to the request
+==================
+PUT https://example.com/a
+
+
+value
+
+---
+
+(document
+  (request
+    (method)
+    (target
+      (url_text))
+    (raw_body)))
+
+==================
+A bodiless method has no body
+==================
+DELETE https://example.com/a
+
+{"not": "a body"}
+
+---
+
+(document
+  (request
+    (method)
+    (target
+      (url_text)))
+  (request
+    (target
+      (url_text))
+    (trailer)))
+
+==================
+A blank line ends a request body
+:error
+==================
+POST https://example.com/a
+
+{
+  "a": 1,
+
+  "b": 2
+}
+
+---
+
+(document
+  (request
+    (method)
+    (target
+      (url_text))
+    (json_body))
+  (request
+    (target
+      (MISSING "{"))
+    (trailer)
+    (plain)))
+
+==================
+A response body keeps its blank lines
+==================
+POST http://example.com/anything
+Content-Type: application/json
+
+{"a": 1}
+
+HTTP/1.1 200 OK
+Content-Type: message/http
+
+POST /anything HTTP/1.1
+Host: example.com
+Content-Type: application/json
+
+{"a": 1}
+
+---
+
+(document
+  (request
+    (method)
+    (target
+      (url_text))
+    (header
+      (header_name)
+      (value
+        (value_text)))
+    (json_body))
+  (response
+    (version)
+    (status_code)
+    (status_text)
+    (header
+      (header_name)
+      (value
+        (value_text)))
+    (raw_body)))
+
+==================
+A status line inside a body is body text
+==================
+POST https://example.com/a
+Content-Type: message/http
+
+GET /a HTTP/1.1
+HTTP/1.1 200 OK
+Date: Sat, 30 Aug 2026 00:00:00 GMT
+
+---
+
+(document
+  (request
+    (method)
+    (target
+      (url_text))
+    (header
+      (header_name)
+      (value
+        (value_text)))
+    (raw_body)))
+
+==================
+A line that only looks like a status line stays in the body
+==================
+POST https://example.com/a
+
+text
+HTTP/1.1 is a protocol
+HTTP/1.1 20 things
+
+---
+
+(document
+  (request
+    (method)
+    (target
+      (url_text))
+    (raw_body)))
+
+==================
+A body never opens with a status line: it is the response
+==================
+POST https://example.com/make
+
+HTTP/1.1 200 OK
+
+{"id": 7}
+
+---
+
+(document
+  (request
+    (method)
+    (target
+      (url_text)))
+  (response
+    (version)
+    (status_code)
+    (status_text)
+    (json_body)))
+
+==================
+Nor with a line that only looks like one
+==================
+POST https://example.com/a
+
+HTTP/1.1 is a protocol
+
+---
+
+(document
+  (request
+    (method)
+    (target
+      (url_text)))
+  (response
+    (version)
+    (status_text)))

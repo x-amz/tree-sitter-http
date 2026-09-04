@@ -1,0 +1,24 @@
+# What `tree-sitter generate` writes, and how much of it is worth reading.
+#
+# `src/parser.c` is the LR automaton dumped as C — dense arrays indexed by
+# symbol and state number. Adding one symbol renumbers every id after it, so
+# a one-rule change re-renders the whole file; the line diff carries no
+# information. It stays committed because every consumer builds from it with
+# no node and no CLI (an editor extension's dylib, the SPM C targets, the
+# wasm build), but
+# git should not try to show it or merge it: on a conflict, regenerate.
+#
+# The same goes for the runtime headers the CLI vendors into src/tree_sitter/.
+#
+# `grammar.json` and `node-types.json` are deliberately left alone. They are
+# the reviewable pair: grammar.json renders the rules that changed, and
+# node-types.json is the public vocabulary every consumer's queries bind to
+# — if it does not move, no query can have broken.
+# `scanner.c` is ours, two lines, hand-written.
+
+*/src/parser.c            -diff -merge linguist-generated=true
+*/src/tree_sitter/*.h     -diff        linguist-generated=true
+
+# The corpus is bytes under test: two files carry lone CRs on purpose. Freeze
+# them against end-of-line normalisation on checkout and on commit.
+*/test/corpus/*.txt       -text

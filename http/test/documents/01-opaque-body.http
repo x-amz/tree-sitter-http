@@ -1,0 +1,7 @@
+### A body whose language nothing here parses
+POST https://api.example.com/import
+Content-Type: text/csv
+
+id,name,live
+1,gauge,true
+2,dial,false

@@ -1,0 +1,24 @@
+// Variables
+@host = postman-echo.com
+
+// Bare URL
+# @name get_uuid
+https://httpbin.org/uuid
+
+###
+
+# @name get_token
+POST https://{{host}}/post
+Content-Type: application/json
+
+{
+  "token": "{{get_uuid.response.body.$.uuid}}"
+}
+
+###
+
+@token = {{get_token.response.body.$.data.token}}
+
+// Origin Form
+GET /get?auth={{token}}
+Host: {{host}}

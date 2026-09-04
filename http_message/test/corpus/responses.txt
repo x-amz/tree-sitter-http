@@ -1,0 +1,91 @@
+==================
+Standalone response
+==================
+HTTP/1.1 200 OK
+Content-Type: text/plain
+
+hello
+
+---
+
+(document
+  (response
+    (version)
+    (status_code)
+    (status_text)
+    (header
+      (header_name)
+      (value
+        (value_text)))
+    (body)))
+
+==================
+Status without reason, HTTP/2
+==================
+HTTP/2 404
+
+---
+
+(document
+  (response
+    (version)
+    (status_code)))
+
+==================
+Response after a bodiless request
+==================
+GET /status/204 HTTP/1.1
+
+HTTP/1.1 204 No Content
+Date: Sun, 30 Aug 2026 00:00:00 GMT
+
+---
+
+(document
+  (request
+    (method)
+    (target
+      (url_text))
+    (version))
+  (response
+    (version)
+    (status_code)
+    (status_text)
+    (header
+      (header_name)
+      (value
+        (value_text)))))
+
+==================
+CRLF wire exchange
+==================
+GET /a HTTP/1.1
+Accept: */*
+
+HTTP/1.1 200 OK
+Content-Type: message/http
+
+GET /echo HTTP/1.1
+Host: example.com
+
+---
+
+(document
+  (request
+    (method)
+    (target
+      (url_text))
+    (version)
+    (header
+      (header_name)
+      (value
+        (value_text))))
+  (response
+    (version)
+    (status_code)
+    (status_text)
+    (header
+      (header_name)
+      (value
+        (value_text)))
+    (body)))

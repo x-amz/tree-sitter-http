@@ -1,0 +1,14 @@
+### The echo answers with the request's own octets
+POST https://http.vet/echo
+Content-Type: application/json
+
+{"probe": "wire"}
+
+HTTP/1.1 200 OK
+Content-Type: message/http
+
+POST /echo HTTP/1.1
+Host: http.vet
+Content-Type: application/json
+
+{"probe": "wire"}

@@ -1,0 +1,62 @@
+# Every push and pull request: `swift test` loads both parsers and compiles
+# every query against them; the grammars are what src/ was generated from,
+# the corpus passes, the web package builds and its release check passes, and
+# the guide builds and its check passes. Nothing is published here.
+#
+# emsdk is the emscripten tree-sitter-cli 0.25.10 was built against; the web
+# package's build requires that version, here and locally.
+#
+# npm is upgraded here for one reason: the publish workflow needs a current
+# npm for trusted publishing, and a job that runs an npm no other job runs is
+# a release that breaks on its own. Every workflow takes the same one, so a
+# push finds what a tag would have. npm gates install scripts by default now;
+# the root package.json's `allowScripts` is what lets tree-sitter-cli fetch
+# its binary.
+name: ci
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  swift:
+    timeout-minutes: 20
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: swift --version
+      - run: swift test
+
+  ci:
+    timeout-minutes: 20
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: npm
+      - uses: emscripten-core/setup-emsdk@4528d102f7230f0e7b276855c01ea1159be0e984 # v16
+        with:
+          version: 4.0.4
+      - run: npm install -g npm@latest
+      - run: npm ci
+      - run: npm run generate
+      - name: src/ is what generate writes
+        run: |
+          if [ -n "$(git status --porcelain -- http/src http_message/src)" ]; then
+            git status --short -- http/src http_message/src
+            echo "::error::src/ is stale - run npm run generate and commit"
+            exit 1
+          fi
+      - run: npm test
+      - run: npm run build
+      - run: npm run check

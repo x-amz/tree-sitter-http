@@ -1,0 +1,169 @@
+==================
+Declarations
+==================
+@host = https://example.com
+@empty =
+@nested = {{host}}/api
+
+---
+
+(document
+  (declaration
+    (identifier)
+    (value
+      (value_text)))
+  (declaration
+    (identifier))
+  (declaration
+    (identifier)
+    (value
+      (placeholder
+        (reference
+          (identifier)))
+      (value_text))))
+
+==================
+Placeholders in target, header, and continuation
+==================
+GET {{host}}/users/{{ id }}
+  ?token={{login.response.body.$.token}}
+Authorization: Bearer {{token}}
+X-Request-Id: {{$guid}}
+X-Random: {{$randomInt 1 100}}
+
+---
+
+(document
+  (request
+    (method)
+    (target
+      (placeholder
+        (reference
+          (identifier)))
+      (url_text)
+      (placeholder
+        (reference
+          (identifier))))
+    (continuation
+      (url_text)
+      (placeholder
+        (reference
+          (identifier)
+          (path_expression))))
+    (header
+      (header_name)
+      (value
+        (value_text)
+        (placeholder
+          (reference
+            (identifier)))))
+    (header
+      (header_name)
+      (value
+        (placeholder
+          (dynamic
+            (dynamic_name)))))
+    (header
+      (header_name)
+      (value
+        (placeholder
+          (dynamic
+            (dynamic_name)
+            (argument)
+            (argument)))))))
+
+==================
+Directives
+==================
+# @name login
+// @disabled
+# @name = second
+// @timeout 30
+POST {{host}}/login
+
+---
+
+(document
+  (directive
+    (identifier)
+    (value
+      (value_text)))
+  (directive
+    (identifier))
+  (directive
+    (identifier)
+    (value
+      (value_text)))
+  (directive
+    (identifier)
+    (value
+      (value_text)))
+  (request
+    (method)
+    (target
+      (placeholder
+        (reference
+          (identifier)))
+      (url_text))))
+
+==================
+Braces that are not placeholders
+==================
+GET https://example.com/{a}/{{b}}
+X-Braces: one { two }} three
+
+---
+
+(document
+  (request
+    (method)
+    (target
+      (url_text)
+      (url_text)
+      (url_text)
+      (placeholder
+        (reference
+          (identifier))))
+    (header
+      (header_name)
+      (value
+        (value_text)
+        (value_text)
+        (value_text)))))
+
+==================
+A declaration needs no spaces around its =
+==================
+
+@host=https://example.com
+@a=
+GET {{host}}/a
+
+---
+
+(document
+  (declaration
+    name: (identifier)
+    value: (value (value_text)))
+  (declaration
+    name: (identifier))
+  (request
+    method: (method)
+    target: (target
+      (placeholder
+        (reference
+          name: (identifier)))
+      (url_text))))
+
+==================
+A directive argument may follow = with no space
+==================
+
+# @name=login
+
+---
+
+(document
+  (directive
+    name: (identifier)
+    argument: (value (value_text))))

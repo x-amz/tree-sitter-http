@@ -1,0 +1,5 @@
+GET /widgets HTTP/1.1
+Host: api.example.com
+X-Trace: 2026-08-31T00:00:00Z
+	continued: an indented line is a fold, colons and all
+Accept: application/json
