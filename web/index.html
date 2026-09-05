@@ -57,24 +57,23 @@
   * { box-sizing: border-box; }
   body {
     margin: 0; background: var(--ground); color: var(--ink);
-    font: 13px/1.55 var(--mono);
+    font: 16px/1.5 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   }
   button, select, textarea { font: inherit; color: inherit; }
   :focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
-  main { max-width: 150ch; margin: 0 auto; padding: 1.1rem 1.2rem 5rem; }
+  main { max-width: 1600px; margin: 0 auto; padding: 1rem clamp(.75rem, 2vw, 2rem) 3rem; }
 
-  /* The text and what this step made of it, side by side, both starting at the
-     top. Only the page scrolls. */
+  /* Source and evidence share the available width, then stack on phones. */
   .work {
-    display: grid; grid-template-columns: minmax(0, 54ch) minmax(0, 1fr);
-    gap: 1.2rem; align-items: start;
+    display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+    gap: 1.25rem; align-items: start;
   }
-  @media (max-width: 1000px) { .work { grid-template-columns: none; } }
+  @media (max-width: 760px) { .work { grid-template-columns: minmax(0, 1fr); gap: .75rem; } }
   .work > * { min-width: 0; }
 
   header {
     display: flex; align-items: center; gap: .6rem 1rem; flex-wrap: wrap;
-    max-width: 150ch; margin: 0 auto; padding: .7rem 1.2rem;
+    max-width: 1600px; margin: 0 auto; padding: .7rem 1.2rem;
     border-bottom: 1px solid var(--edge);
   }
   header h1 { font-size: 15px; font-weight: 600; margin: 0; letter-spacing: -.01em; }
@@ -110,7 +109,7 @@
      you have gone down into. Always one line, so going in moves nothing. */
   #trail {
     margin: 0 0 .6rem; display: flex; align-items: center; gap: .3rem; font-size: 12px;
-    height: 1.8em; overflow: hidden; white-space: nowrap;
+    min-height: 2rem; overflow-x: auto; white-space: nowrap;
   }
   #trail button {
     background: var(--field); border: 1px solid var(--edge); border-radius: 4px;
@@ -120,21 +119,17 @@
   #trail .here { color: var(--ink); font-weight: 600; border-color: var(--keyword); }
   #trail .sep { color: var(--edge); }
 
-  /* Fixed heights, so nothing a click or a step change does can move anything
-     else: the caption is per step, the lead answers for the caret or the pick,
-     the document view is one size at every step, the note under the text
-     names the element. Each scrolls inside if it must. */
-  #caption { margin: 0 0 .8rem; color: var(--ink); height: calc(2 * 1.55em); overflow: auto; max-width: 110ch; }
-  .lead { height: calc(3 * 1.55em); overflow: auto; margin: 0 0 .6rem; }
+  /* Explanations fit their content; dense evidence scrolls in bounded panes. */
+  #caption { margin: 0 0 .8rem; color: var(--ink); min-height: 3em; max-width: 100ch; overflow-wrap: anywhere; }
+  .lead { min-height: 4.5em; overflow-wrap: anywhere; margin: 0 0 .6rem; }
   .lead p { margin: 0; }
   .pane { height: 12rem; overflow: auto; margin: 0 0 .5rem; }
   .pane table { margin: 0; }
   #caption b { font-weight: 600; }
   #caption .hint { color: var(--dim); }
 
-  /* One editable block. The rendering under it sets the height, so the page is
-     the only thing that scrolls. Under it, the same text in the package's own
-     element, styled as a consumer would style it: the host is the box. */
+  /* The mirror sets the editable block's height. Its outer wrapper scrolls
+     both layers together. The package comparison lives below the work area. */
   .field {
     position: relative; border: 1px solid var(--edge); border-radius: 5px;
     background: var(--field); overflow: hidden;
@@ -196,16 +191,20 @@
      textarea when it is editable) and a wrapper that scrolls to them. The
      document never moves; the marks do. */
   .doc {
-    height: 22rem; overflow: auto; border: 1px solid var(--edge); border-radius: 4px;
+    height: clamp(16rem, 48svh, 36rem); overflow: auto; border: 1px solid var(--edge); border-radius: 4px;
     background: var(--wash); margin: 0 0 .5rem;
   }
   .doc table { margin: 0; }
   .doc .scroll { overflow: visible; }
-  /* One row per stage, each a box with room for what it says to wrap: a fixed
-     height, so no row under it moves. */
+  /* Range context spans the table; stage labels stay narrow, while the
+     explanations wrap and determine their own row height. */
   .chain table { table-layout: fixed; width: 100%; }
-  .chain td { height: calc(3 * 1.55em); vertical-align: top; overflow: hidden; }
-  .chain td:first-child, .chain th:first-child { width: 8em; }
+  .chain caption { text-align: left; padding: .5rem .6rem;
+    border-bottom: 1px solid var(--edge); overflow-wrap: anywhere; }
+  .chain caption b, .chain caption span { display: block; }
+  .chain caption span { color: var(--dim); margin-top: .15rem; }
+  .chain td { vertical-align: top; overflow-wrap: anywhere; }
+  .chain td:first-child { width: 6em; }
   .doc .field { border: 0; border-radius: 0; background: transparent; }
   .doc pre, .doc textarea {
     margin: 0; font: 12px/1.5 var(--mono); padding: .5rem; tab-size: 2;
@@ -219,10 +218,10 @@
   details details { margin-top: .8rem; }
 
   footer {
-    max-width: 150ch; margin: 0 auto; padding: .35rem 1.2rem 1.2rem;
+    max-width: 1600px; margin: 0 auto; padding: .35rem 1.2rem 1.2rem;
     color: var(--dim); font-size: 11px; display: flex; flex-wrap: wrap; gap: .1rem;
   }
-  footer span { padding-right: .7rem; margin-right: .7rem; border-right: 1px solid var(--rule); white-space: nowrap; }
+  footer span { min-width: 0; padding-right: .7rem; margin-right: .7rem; border-right: 1px solid var(--rule); overflow-wrap: anywhere; }
   footer span:last-child { border-right: 0; }
   footer b { font-weight: 600; color: var(--ink); }
   footer b.warn { color: var(--error); }
@@ -263,7 +262,70 @@
     .hl .d5 { background: rgba(96, 165, 250, .45); }
   }
 
-  #boot { max-width: 150ch; margin: 0 auto; padding: 1rem 1.2rem; color: var(--error); }
+
+  /* A compact workbench: source and evidence first, reference on demand.
+     Scroll the source wrapper, keeping the textarea and its mirror together. */
+  header { padding: .75rem clamp(.75rem, 2vw, 2rem); }
+  header h1 { font: 600 16px var(--mono); }
+  header p { font-size: 14px; }
+  header .right { flex-wrap: wrap; min-width: 0; }
+  #dialects { display: flex; }
+  button, select, summary { touch-action: manipulation; }
+  .choice, select { min-height: 36px; font-size: 14px; }
+  #examples { flex: 1; min-width: 0; }
+  #steps { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 0; border: 1px solid var(--edge); border-radius: 6px;
+    background: var(--field); overflow: hidden; margin-bottom: .75rem; }
+  #steps .arrow { display: none; }
+  .step { min-height: 44px; font-size: 14px; padding: .5rem .25rem; }
+  .step + .arrow + .step { border-left: 1px solid var(--rule); }
+  .step[aria-selected="true"] { background: var(--wash); border-bottom-color: var(--focus); }
+  .step[aria-selected="true"] i { color: var(--focus); }
+  .step i { color: var(--dim); }
+  #caption { margin-bottom: .35rem; }
+  #trail { margin-bottom: .75rem; }
+  #trail button { min-height: 32px; flex-shrink: 0; font-size: 14px; }
+  .panel-label { display: flex; justify-content: space-between; gap: .5rem;
+    margin-bottom: .5rem; font-size: 14px; font-weight: 600; }
+  .panel-label span { font-size: 12px; font-weight: 400; color: var(--dim); }
+  .editor-scroll { max-height: 56svh; min-height: 10rem; overflow: auto;
+    border: 1px solid var(--edge); border-radius: 6px; background: var(--field); }
+  #field { border: 0; border-radius: 0; }
+  #field pre, #field textarea { min-height: 10rem; font-size: 14px; }
+  #result { min-width: 0; padding: .75rem; background: var(--field);
+    border: 1px solid var(--edge); border-radius: 6px; }
+  #result h3, summary { font-size: 14px; }
+  table { font: 13px/1.5 var(--mono); }
+  th, td { padding: .4rem .6rem; }
+  td:last-child, th:last-child { padding-right: .6rem; }
+  .doc thead { position: sticky; top: 0; background: var(--wash); z-index: 1; }
+  .doc pre, .doc textarea { font-size: 14px; }
+  details { margin-top: .75rem; padding-top: .5rem; }
+  summary { padding: .5rem 0; }
+  #shipped-note { height: auto; overflow-wrap: anywhere; }
+  #shipped { max-height: 50svh; overflow: auto; }
+  footer { flex-wrap: wrap; overflow-wrap: anywhere; }
+  @media (max-width: 760px) {
+    header { gap: .3rem .75rem; }
+    header .right { width: 100%; margin: .4rem 0 0; gap: .4rem; }
+    #examples { max-width: none; width: 50%; }
+    .choice, select { min-height: 44px; }
+    main { padding-top: .75rem; }
+    #caption { min-height: 0; font-size: 14px; }
+    .lead { min-height: 0; font-size: 14px; }
+    #steps { margin-bottom: .5rem; }
+    .step { font-size: 13px; }
+    .step i { display: block; margin: 0; font-size: 12px; }
+    #trail { margin-bottom: .5rem; }
+    .editor-scroll { max-height: 28svh; }
+    #field pre, #field textarea { font-size: 16px; --line: 24px; }
+    #result { padding: .6rem; }
+    .doc { height: clamp(14rem, 36svh, 24rem); }
+    .doc pre, .doc textarea { font-size: 16px; }
+    .pane { height: 10rem; }
+  }
+
+  #boot { max-width: 1600px; margin: 0 auto; padding: 1rem 1.2rem; color: var(--error); }
 </style>
 <style id="shipped-css"></style>
 <!-- The package, by the name a consumer imports it under. Each entry is one of
@@ -296,17 +358,22 @@
   <p id="caption"></p>
   <nav id="trail" aria-label="where you are"></nav>
   <div class="work">
-    <div>
+    <section class="source" aria-label="Editable source">
+      <div class="panel-label"><label for="input">Source text</label><span>edit · select · inspect</span></div>
+      <div class="editor-scroll" tabindex="0" role="region" aria-label="Scrollable source text">
       <div class="field" id="field">
         <pre class="hl" id="output" aria-hidden="true"></pre>
         <textarea id="input" spellcheck="false" autocomplete="off" autocapitalize="off"
                   autocorrect="off" aria-label="the text"></textarea>
       </div>
-      <p id="shipped-note"></p>
-      <http-file id="shipped" aria-label="the text, as the package paints it"></http-file>
-    </div>
+      </div>
+    </section>
     <div id="result" role="region" aria-live="polite"></div>
   </div>
+  <details class="preview"><summary>Compare with the shipped highlighter</summary>
+    <p id="shipped-note"></p>
+    <http-file id="shipped" aria-label="the text, as the package paints it"></http-file>
+  </details>
   <details id="grammar-ref"><summary>the grammar, as generated</summary><div id="grammar-body"></div></details>
   <details id="corpus-ref"><summary>the corpus, run here</summary><div id="corpus-body"></div></details>
 </main>

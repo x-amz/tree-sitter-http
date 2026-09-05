@@ -46,7 +46,8 @@ const clip = (text, n = 48) => (text.length > n ? `${text.slice(0, n)}…` : tex
 /** Make an invisible character visible in a label. */
 const show = (text) => text.replace(/\t/g, "⇥").replace(/\r/g, "␍").replace(/\n/g, "␊").replace(/ /g, "·");
 const code = (text) => raw(`<code>${esc(text)}</code>`);
-const table = (head, rows) => html`<div class="scroll"><table>
+const table = (head, rows, caption = null) => html`<div class="scroll"><table>
+    ${caption ? html`<caption>${caption}</caption>` : ""}
     ${head ? raw(`<thead><tr>${head}</tr></thead>`) : ""}
     <tbody>${raw(rows.map(fmt).join("") || '<tr><td class="muted">nothing here</td></tr>')}</tbody>
   </table></div>`;
@@ -1601,13 +1602,16 @@ function chainFor(level, rel, index, range) {
       ? html`hands ${child.start}–${child.end} to <b>${child.language}</b> by pattern ${child.patternIndex}${child.resolved ? "" : " — opaque: no grammar answers"}`
       : "hands nothing on here";
 
-  return table(`<th>${esc(name)} ${range.start}–${range.end}</th><th>of the ${level.parent === view() ? "text" : `${esc(level.parent.language)} range`}, at its character ${rel}</th>`, [
+  // This describes the whole range, not the narrow stage-name column.
+  const caption = html`<b>${name} ${range.start}–${range.end}</b>
+    <span>of the ${level.parent === view() ? "text" : `${level.parent.language} range`}, at its character ${rel}</span>`;
+  return table(null, [
     stage(1, "lex", lex),
     stage(2, "parse", parse2),
     stage(3, "query", query),
     stage(4, "paint", paint),
     stage(5, "inject", inject),
-  ]);
+  ], caption);
 }
 
 

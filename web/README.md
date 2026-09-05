@@ -13,20 +13,16 @@ editable the whole way, so every step runs against your text, not a recording.
 | 4 paint | colours it — capture name to colour, which is all highlighting is; stands in the package's stylesheet, each rule's colour on this page beside it — the caret names the capture, marks the rules that paint it, and says which `--ts-*` property the colour came through and what this page resolves it to; a pick of a rule marks everywhere it paints |
 | 5 inject | tints the ranges handed to another grammar, and the ones that stayed opaque; the grammar that took the range under the caret runs the five steps before this one on it, from its own tables — one row per step, at the caret — and again for any range it hands on |
 
-Every step stands in one document on the right — the characters, the
-grammar's token ladder, the tree, the two queries, the package's stylesheet,
-the steps run inside a handed-over range — in a box of one size at every step,
-and every table is drawn the same way. Selection works from either side. The
-caret in the text asks *what is this?*, and the document marks what applies. A
-pick in the document asks *where are these?*, and the text marks every range
-that item produced. Clicking in the text again follows the caret. Nothing a
-click changes can move anything else: the caption, the lead that answers for
-the caret or the pick, and every document and table sit in boxes of fixed size
-that scroll inside to what applies.
+Every step stands in one document beside the source on wider screens and directly
+below it on mobile. Selection works from either side: the caret asks *what is
+this?*, and a pick in the document asks *where are these?* The source scrolls
+within a viewport-sized area, keeping long examples from pushing the analysis
+out of reach. Captions and caret explanations grow to fit their content; the
+step documents and supporting tables scroll inside bounded panes.
 
-Under the box, at every step, the same text sits in the package's own
-`<http-file>` element: what a consumer gets, beside what the page is doing to
-the same characters. A range the inject step handed to another grammar can be
+An expandable comparison below the work area contains the same text in the
+package's own `<http-file>` element: what a consumer gets, beside what the
+page is doing to the same characters. A range the inject step handed to another grammar can be
 gone into, and the six steps run there on that grammar — its tokens and
 their precedences, its item sets, its query — with the same material the
 dialects have, not a note saying so. Two collapsed sections at the end are
