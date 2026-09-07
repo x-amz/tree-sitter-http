@@ -32,9 +32,12 @@ paint a page before it is sent. The output's text content is the input.
 transparent textarea over it, so the caret sits on coloured text. The
 element takes `value`, `selectionStart`, `selectionEnd`, `setSelectionRange`,
 `scrollTop` and `scrollLeft`, and fires `input` and `select`. The host is the
-box: font, colour, border, background and height are its styles; give it no
-height and it grows with the text. `--http-file-padding` and
-`--http-file-selection` are the two knobs inside.
+box: font, colour, border, background, height — and `display` — are its
+styles; give it no height and it grows with the text. Stacking the two layers
+is a box inside the shadow root, so styling the host cannot take it away.
+`--http-file-padding` and `--http-file-selection` are the two knobs inside,
+and `::part(box)`, `::part(text)` and `::part(textarea)` reach the three
+elements.
 
 With no bundler, map the specifier once:
 

@@ -101,6 +101,21 @@ if (only(named, assets).length || only(assets, named).length)
 for (const target of Object.values(manifest.exports))
   if (!target.includes("*") && !existsSync(join(PKG, target))) die(`package.json exports ${target}, which is not there`);
 
+// The editor's two layers have to sit in one box, and that box must not be
+// the host. A page's declaration beats a `:host` one at any specificity —
+// `* { display: block }` is enough — so a grid on the host is a grid any
+// consumer stylesheet can take away: the text still paints, no error is
+// raised, and the caret stops following the click. Nothing in this repo
+// mounts an editable element, so this is the check that holds the contract.
+const element = readFileSync(join(PKG, "element.js"), "utf8");
+const hostRule = /^:host \{([^}]*)\}/m.exec(element)?.[1] ?? "";
+if (/grid-template|grid-area|display:\s*(grid|flex)/.test(hostRule))
+  die("element.js puts the layers' layout on :host — a page that sets display on the element takes it away, and the editor's caret goes dead. It belongs on a box inside the shadow root");
+if (!/^\.box \{[^}]*display:\s*grid[^}]*grid-template:/m.test(element))
+  die("element.js has no .box carrying the grid the two layers share");
+if (!/^pre, textarea \{[^}]*grid-area:\s*1 \/ 1/m.test(element))
+  die("element.js no longer puts the painted text and the textarea in one grid cell");
+
 // `npm pack --json` reported an array of results through npm 11 and an object
 // keyed by package name from npm 12. One package is packed either way.
 const report = JSON.parse(execFileSync("npm", ["pack", "--dry-run", "--json", "--silent", "--ignore-scripts"], { cwd: PKG, encoding: "utf8" }));

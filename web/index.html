@@ -120,8 +120,8 @@
   #trail .sep { color: var(--edge); }
 
   /* Explanations fit their content; dense evidence scrolls in bounded panes. */
-  #caption { margin: 0 0 .8rem; color: var(--ink); min-height: 3em; max-width: 100ch; overflow-wrap: anywhere; }
-  .lead { min-height: 4.5em; overflow-wrap: anywhere; margin: 0 0 .6rem; }
+  #caption { margin: 0 0 .8rem; color: var(--ink); max-width: 100ch; overflow-wrap: anywhere; }
+  .lead { overflow-wrap: anywhere; margin: 0 0 .6rem; }
   .lead p { margin: 0; }
   .pane { height: 12rem; overflow: auto; margin: 0 0 .5rem; }
   .pane table { margin: 0; }
@@ -159,6 +159,7 @@
   #result h3:first-child { margin-top: 0; border-top: 0; padding-top: 0; }
   #result p { margin: 0 0 .5rem; color: var(--dim); max-width: 92ch; }
   #result .now { color: var(--ink); }
+  #result .now .sep { color: var(--dim); }
   code { background: var(--wash); padding: 0 .2em; border-radius: 2px; }
 
   table { border-collapse: collapse; width: 100%; font-size: 12px; margin: 0 0 .5rem; }
@@ -273,7 +274,7 @@
   button, select, summary { touch-action: manipulation; }
   .choice, select { min-height: 36px; font-size: 14px; }
   #examples { flex: 1; min-width: 0; }
-  #steps { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr));
+  #steps { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr);
     gap: 0; border: 1px solid var(--edge); border-radius: 6px;
     background: var(--field); overflow: hidden; margin-bottom: .75rem; }
   #steps .arrow { display: none; }
@@ -284,6 +285,8 @@
   .step i { color: var(--dim); }
   #caption { margin-bottom: .35rem; }
   #trail { margin-bottom: .75rem; }
+  #trail[hidden] { display: none; }
+  #ladder-scroll, #inject-chain-scroll { height: auto; max-height: 48svh; }
   #trail button { min-height: 32px; flex-shrink: 0; font-size: 14px; }
   .panel-label { display: flex; justify-content: space-between; gap: .5rem;
     margin-bottom: .5rem; font-size: 14px; font-weight: 600; }
@@ -359,7 +362,7 @@
   <nav id="trail" aria-label="where you are"></nav>
   <div class="work">
     <section class="source" aria-label="Editable source">
-      <div class="panel-label"><label for="input">Source text</label><span>edit · select · inspect</span></div>
+      <div class="panel-label"><label for="input">Source text</label></div>
       <div class="editor-scroll" tabindex="0" role="region" aria-label="Scrollable source text">
       <div class="field" id="field">
         <pre class="hl" id="output" aria-hidden="true"></pre>

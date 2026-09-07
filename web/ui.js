@@ -18,7 +18,7 @@
 import { ready, bundles, highlight, escape, CSS, grammars, analyze, injectionNames } from "tree-sitter-http-web";
 import { Query } from "tree-sitter-http-web/dist/tree-sitter.js";
 import "tree-sitter-http-web/element";
-import { bundled, load, shown } from "./sources.js";
+import { bundled, load } from "./sources.js";
 import * as grammar from "./grammar.js";
 import * as parse from "./parse.js";
 import * as scm from "./query.js";
@@ -46,6 +46,12 @@ const clip = (text, n = 48) => (text.length > n ? `${text.slice(0, n)}…` : tex
 /** Make an invisible character visible in a label. */
 const show = (text) => text.replace(/\t/g, "⇥").replace(/\r/g, "␍").replace(/\n/g, "␊").replace(/ /g, "·");
 const code = (text) => raw(`<code>${esc(text)}</code>`);
+/** A lead is facts, not sentences: the chips that are there, one line, a dot between. */
+const facts = (...items) => {
+  const kept = items.filter((one) => one !== null && one !== undefined && one !== "");
+  return html`<p class="now">${kept.map((one, i) => html`${i ? raw(' <span class="sep">·</span> ') : ""}${one}`)}</p>`;
+};
+const span = (start, end) => html`${start}–${end}`;
 const table = (head, rows, caption = null) => html`<div class="scroll"><table>
     ${caption ? html`<caption>${caption}</caption>` : ""}
     ${head ? raw(`<thead><tr>${head}</tr></thead>`) : ""}
@@ -55,7 +61,6 @@ const table = (head, rows, caption = null) => html`<div class="scroll"><table>
 // MARK: steps
 
 const STEPS = [
-  { label: "plain", caption: capPlain, paint: paintPlain, result: seePlain },
   { label: "lex", caption: capLex, paint: paintLex, result: seeLex },
   { label: "parse", caption: capParse, paint: paintParse, result: seeParse },
   { label: "query", caption: capQuery, paint: paintQuery, result: seeQuery },
@@ -97,7 +102,7 @@ export async function start() {
   activate(app.dialects[0]);
 
   fetchText("./states.json")
-    .then((text) => { app.states = JSON.parse(text); if (app.step === 2) renderResult(); })
+    .then((text) => { app.states = JSON.parse(text); if (app.step === 1) renderResult(); })
     .catch(() => app.notes.push("states.json"));
 }
 
@@ -474,7 +479,7 @@ function refreshDoc() {
     marks in its mirror, the report under it — rendered again in place. */
 function refreshPanel() {
   const entry = view();
-  if (app.step !== 3) return;
+  if (app.step !== 2) return;
   const lead = document.getElementById("query-at");
   if (lead) lead.innerHTML = fmt(queryLead(entry));   // settles the marks
   const mirror = document.getElementById("query-mirror");
@@ -486,6 +491,7 @@ function refreshPanel() {
 }
 
 function renderTrail() {
+  dom.trail.hidden = !app.trail.length && !app.stranded;
   if (!app.trail.length) {
     dom.trail.innerHTML = fmt(html`<button data-level="-1" class="here">${app.active.dialect.name}</button>
       <span class="muted">— ${app.stranded
@@ -502,7 +508,7 @@ function renderTrail() {
   dom.trail.innerHTML = fmt(html`${crumbs.map((name, i) => html`${i ? raw('<span class="sep">›</span>') : ""}<button
       data-level="${i - 1}" class="${i === crumbs.length - 1 ? "here" : ""}">${name}</button>`)}
     <span class="muted">— characters ${at}–${at + last.text.length} of the document, which
-    ${last.language} owns. Editing here edits the document.</span>`);
+    ${last.language} owns.</span>`);
 }
 
 // MARK: the run
@@ -602,7 +608,7 @@ function renderText() {
   }
   // A range another grammar could not read is wrong text too, wherever the
   // footer counts it.
-  if (app.step === 5) {
+  if (app.step === 4) {
     for (const record of entry.injections) {
       if (record.hasError) mark.fill("bad", record.start, record.end);
     }
@@ -615,11 +621,17 @@ function renderCaption() {
 }
 
 function renderResult() {
+  // A selection refresh must not close the reference the reader is using.
+  const expanded = new Set(Array.from(dom.result.querySelectorAll?.("details[open][data-panel]") ?? [],
+    (one) => one.dataset.panel));
   try {
     dom.result.innerHTML = fmt(STEPS[app.step].result(view()));
   } catch (error) {
     dom.result.innerHTML = fmt(html`<p class="warn">${error.message}</p>`);
     throw error;
+  }
+  for (const one of dom.result.querySelectorAll?.("details[data-panel]") ?? []) {
+    if (expanded.has(one.dataset.panel)) one.open = true;
   }
   // Every box the step stands in is scrolled to what applies — the line the
   // lead names, or the marked row — so it opens on what matters and nothing
@@ -640,10 +652,8 @@ function renderResult() {
   }
 }
 
-/** The panel is boxes of fixed size, so no click moves anything: the lead, a
-    few lines that answer for the caret or the pick; the document the step
-    stands in — one size at every step — scrolled to what applies; a pane for
-    whatever else varies. */
+/** The lead answers for the selection. Documents and supporting evidence
+    have bounded scroll areas; short results use only the space they need. */
 const lead = (id, content) => html`<div class="lead" id="${id}">${content}</div>`;
 const pane = (id, content) => html`<div class="pane" id="${id}">${content}</div>`;
 const box = (id, content) => html`<div class="doc" id="${id}-scroll">${content}</div>`;
@@ -685,20 +695,14 @@ const bare = (symbol) => String(symbol).replace(/_token\d+$/, "");
 
 function renderStatus() {
   const entry = view();
-  const language = entry.bundle.language;
   const painted = entry.painted;
   const cells = [
-    html`<b>${entry.dialect.name}</b>${entry.dialect.title && entry.dialect.title !== entry.dialect.name
-      ? html` · ${entry.dialect.title}` : ""}`,
-    html`parsed and painted in <b>${ms(entry.elapsed)}</b>`,
     !painted.anyError ? html`<b class="ok">no errors</b>`
       : painted.total
         ? html`<b class="warn">${plural(painted.total, "error node")}</b>${painted.injected
             ? html`, ${painted.injected} in an injected language` : ""}`
         : html`<b class="warn">missing tokens</b>${painted.injectedBad && !painted.hasError
             ? html` in an injected language` : ""}`,
-    html`${language.stateCount} states in its parse table, abi ${language.abiVersion}`,
-    html`${code("tree-sitter-http-web")} from <b>${shown(new URL(import.meta.resolve("tree-sitter-http-web")))}</b>`,
     app.notes.length ? html`not built: <b class="warn">${app.notes.join(", ")}</b> — run the build` : null,
   ].filter(Boolean);
   dom.status.innerHTML = cells.map((cell) => `<span>${fmt(cell)}</span>`).join("");
@@ -751,54 +755,30 @@ const compiled = (entry, source) => scm.compile(Query, entry.bundle.language, so
 
 // MARK: 0 plain
 
-function capPlain(entry) {
-  // A file ending in a newline has one more line-start than it has lines, and
-  // the parser counts line-starts. A reader counts lines.
-  const lines = entry.parsed.lines.length
-    - (entry.source.endsWith("\n") || entry.source === "" ? 1 : 0);
-  return html`<b>Plain text — nothing has read it yet.</b> ${plural(entry.parsed.bytes, "byte")},
+// MARK: 0 lex — the character under the caret, and the token it is in
+
+function capLex(entry) {
+  const lines = entry.parsed.lines.length - (entry.source.endsWith("\n") || entry.source === "" ? 1 : 0);
+  return html`<b>The lexer cuts text into tokens the parser can accept.</b> ${plural(entry.parsed.bytes, "byte")},
     ${plural(Math.max(lines, 0), "line")}.`;
 }
 
-function paintPlain() { return null; }
-
-function seePlain(entry) {
+/** The character under the caret: offset, line and column, the character, its code point. */
+function characterFacts(entry) {
   const at = caret();
   const source = entry.source;
   const before = source.slice(0, at);
   const row = before.split("\n").length;
   const column = at - (before.lastIndexOf("\n") + 1);
   const character = source[at];
-  const encoder = new TextEncoder();
-  const rows = [];
-  for (let i = 0; i < source.length; i += 1) {
-    const point = source.codePointAt(i);
-    const char = String.fromCodePoint(point);
-    rows.push(html`<tr class="pick ${i <= at && at < i + char.length ? "on" : ""}" data-select="${i}:${i}">
-      <td class="num">${i}</td>
-      <td>${show(char)}</td>
-      <td>U+${point.toString(16).toUpperCase().padStart(4, "0")}</td>
-      <td class="muted">${[...encoder.encode(char)].map((b) => b.toString(16).padStart(2, "0")).join(" ")}</td>
-    </tr>`);
-    if (point > 0xffff) i += 1;
-  }
-  entry.scrollTo = scrollToRow("chars");
-  return html`
-    ${lead("plain-at", html`<p class="now">Caret at offset <b>${at}</b> — line ${row}, column ${column}${character
-      ? html`, on ${code(show(character))} (U+${character.codePointAt(0).toString(16).toUpperCase().padStart(4, "0")})`
-      : ", at the end"}. Nothing has read the text yet: only characters, numbered from zero.</p>`)}
-    <h3>characters</h3>
-    ${box("chars", table('<th class="num">offset</th><th>character</th><th>code point</th><th>UTF-8</th>', rows))}`;
-}
-
-// MARK: 1 lex
-
-function capLex(entry) {
-  const { facts, parsed } = entry;
-  const accepted = parsed.tokens.filter((token) => token.accepted).length;
-  const skips = facts && facts.counts.extras === 0;
-  return html`<b>The lexer cut it into ${plural(accepted, "token")}.</b> Alternate tokens are
-    shaded${skips ? "; whitespace is a token too, underlined" : ""}.`;
+  const point = character?.codePointAt(0);
+  return facts(
+    html`offset <b>${at}</b>`,
+    html`line ${row}, column ${column}`,
+    character ? code(show(String.fromCodePoint(point))) : "end of text",
+    character ? html`U+${point.toString(16).toUpperCase().padStart(4, "0")}` : null,
+    character ? html`<span class="muted">${[...new TextEncoder().encode(String.fromCodePoint(point))].map((b) => b.toString(16).padStart(2, "0")).join(" ")}</span>` : null,
+  );
 }
 
 function paintLex(entry, source) {
@@ -828,31 +808,35 @@ function seeLex(entry) {
   const options = candidatesFor(entry, token);
   const matched = options.rows.filter((option) => option.matched);
   const ladder = lexicon(entry, options.rows, token);
-  const rows = ladder.map((row) => html`
+  const tokenRow = (row) => html`
     <tr class="pick ${(pick != null ? row.symbol === pick : row.won) ? "on" : row.valid ? "" : "muted"}"
         data-pick="tok:${row.symbol}">
       <td>${row.matched ? "✓" : row.valid ? "·" : ""}</td>
       <td>${row.symbol}</td>
       <td class="num">${row.precedence ?? "—"}</td>
-      <td class="muted">${row.level ?? ""}</td>
       <td class="num">${row.matched ? row.length : ""}</td>
       <td>${row.patterns.length ? code(clip(row.patterns.join(" | "), 40))
         : raw('<span class="muted">external scanner</span>')}</td>
-    </tr>`);
+    </tr>`;
+  const relevant = ladder.filter((row) => row.valid || row.won || row.symbol === pick);
+  const remaining = ladder.filter((row) => !relevant.includes(row));
+  const head = '<th></th><th>token</th><th class="num">precedence</th><th class="num">length</th><th>pattern</th>';
   entry.scrollTo = scrollToRow("ladder");
-  const at = pick != null ? lexPicked(entry, ladder, accepted, pick) : html`
-    <p class="now">This token is <b>${token.symbol}</b>${token.precedence != null
-      ? html`, precedence ${token.precedence}` : ""}: ${code(show(clip(entry.source.slice(token.start, token.end), 34)))}
-    from offset ${token.start}${token.external ? ", from the external scanner" : ""}. ${!entry.facts
-      ? "Its tables are not here — run the build — so what else was in the running cannot be shown."
-      : matched.length > 1 ? html`${matched.length} tokens matched there.`
-      : matched.length === 1 ? "Only it matched there."
-      : "Nothing matched there, so the parser is recovering."}${entry.facts ? whyItWon(options.rows, token) : ""}</p>`;
+  const at = pick != null ? lexPicked(entry, ladder, accepted, pick) : facts(
+    html`<b>${token.symbol}</b> ${span(token.start, token.end)}`,
+    code(show(clip(entry.source.slice(token.start, token.end), 34))),
+    token.precedence != null ? html`precedence ${token.precedence}` : null,
+    token.external ? "external scanner" : null,
+    !entry.facts ? html`<span class="warn">tables not built</span>`
+      : matched.length ? html`${matched.length} matched` : html`<span class="warn">nothing matched, recovering</span>`,
+    entry.facts ? whyItWon(options.rows, token) : null,
+  );
   return html`
-    ${lead("lex-at", at)}
-    <h3>tokens</h3>
-    ${box("ladder", table('<th></th><th>token</th><th class="num">precedence</th><th>level</th>'
-          + '<th class="num">characters</th><th>pattern</th>', rows))}`;
+    ${lead("lex-at", html`${characterFacts(entry)}${at}`)}
+    <h3>tokens considered here</h3>
+    ${box("ladder", table(head, relevant.map(tokenRow)))}
+    ${remaining.length ? html`<details data-panel="lexicon"><summary>Other token kinds (${remaining.length})</summary>
+      ${table(head, remaining.map(tokenRow))}</details>` : ""}`;
 }
 
 
@@ -860,46 +844,33 @@ function seeLex(entry) {
 function lexPicked(entry, ladder, accepted, pick) {
   const row = ladder.find((one) => one.symbol === pick);
   const found = accepted.filter((one) => bare(one.symbol) === pick);
-  return html`
-    <p class="now"><b>${pick}</b> — ${found.length
-      ? html`${found.length} of the ${plural(accepted.length, "token")} in this text, marked above${
-          found.length === 1 ? html`, at offset ${found[0].start}` : html`, the first at offset ${found[0].start}`}.`
-      : "no token of this kind in this text."}${row
-      ? html` Precedence ${row.precedence ?? "none"}${row.level ? html` (${row.level})` : ""}${row.patterns.length
-          ? html`, pattern ${code(clip(row.patterns.join(" | "), 60))}` : ", from the external scanner"}.`
-      : ""}</p>`;
+  return facts(
+    html`<b>${pick}</b>`,
+    found.length ? html`${found.length} of ${plural(accepted.length, "token")}` : "none in this text",
+    found.length ? html`first at ${found[0].start}` : null,
+    row ? html`precedence ${row.precedence ?? "none"}${row.level ? html` (${row.level})` : ""}` : null,
+    row ? (row.patterns.length ? code(clip(row.patterns.join(" | "), 60)) : "external scanner") : null,
+  );
 }
 
-/** Which of the four rules actually settled it — stated, not left to be
-    inferred from the table. The order is precedence, then length, then the
-    order the rules are declared in. */
+/** Which of the rules settled it, as a chip: precedence, then length, then
+    the order the rules are declared in. Null when nothing else matched. */
 function whyItWon(rows, token) {
   const winner = rows.find((row) => bare(row.symbol) === bare(token.symbol));
   const rivals = rows.filter((row) => row.matched && row !== winner);
-  if (!winner || !rivals.length) return "";
+  if (!winner || !rivals.length) return null;
   const level = (row) => row.precedence ?? 0;
-  const named = (row) => html`<code>${row.symbol}</code>`;
-  const longer = rivals.filter((row) => row.length > winner.length);
-  const aside = longer.length
-    ? html` ${named(longer[0])} matched ${plural(longer[0].length, "character")} — more than the
-      winner — and still lost, because precedence is settled before length.`
-    : "";
   const tied = rivals.filter((row) => level(row) === level(winner));
   const under = rivals.filter((row) => level(row) < level(winner));
   if (under.length && !tied.length) {
-    const best = Math.max(...under.map(level));
-    return html` <b>${named(winner)} won on precedence</b>: ${level(winner)} against ${best || "none"}.${aside}`;
+    return html`won on precedence, ${level(winner)} over ${Math.max(...under.map(level)) || "none"}`;
   }
   const shorter = tied.filter((row) => row.length < winner.length);
   if (tied.length && shorter.length === tied.length) {
-    return html` <b>${named(winner)} won on length</b>: it took ${plural(winner.length, "character")}
-      where ${named(tied[0])}, at the same precedence, took ${tied[0].length}.${aside}`;
+    return html`won on length, ${winner.length} over ${tied[0].length}`;
   }
-  if (tied.length) {
-    return html` <b>${named(winner)} won on rule order</b>: it and ${named(tied[0])} tie on precedence
-      and on length, so the one declared first in the grammar takes it.${aside}`;
-  }
-  return aside;
+  if (tied.length) return html`won on rule order over ${code(tied[0].symbol)}`;
+  return null;
 }
 
 /** The lexer's whole vocabulary in the ladder's order, lit by the caret: which
@@ -1027,15 +998,11 @@ function seeParse(entry) {
   return html`
     ${lead("parse-at", html`
       <p class="now">${crumbs}</p>
-      <p>${code(node.type)} spans ${node.startIndex}–${node.endIndex}${node.isNamed
-        ? "" : ", anonymous — a literal the grammar spells out"}${node.isMissing
-        ? ", missing — inserted by the parser to keep going, so it takes up no characters" : ""}. ${node.parent
-        ? html`Its parent ${code(node.parent.type)} holds ${node.parent.namedChildCount}
-          named ${node.parent.namedChildCount === 1 ? "child" : "children"}.`
-        : "It is the root."}</p>`)}
+      ${facts(html`<b>${node.type}</b> ${span(node.startIndex, node.endIndex)}`,
+        node.isNamed ? null : "anonymous", node.isMissing ? "missing, zero width" : null)}`)}
     <h3>tree</h3>
     ${box("tree", treeOf(entry, entry.parsed.tree.rootNode, node))}
-    <h3>parser state</h3>
+    <details data-panel="parser"><summary>Parser state and incremental edits</summary>
     ${pane("parse-out", html`
       ${entry.step ? html`
         <p>Your last edit replaced ${plural(entry.step.edit.oldEndIndex - entry.step.edit.startIndex, "character")} at
@@ -1052,7 +1019,7 @@ function seeParse(entry) {
         That is what an editor does on every keystroke.</p>` : ""}
       ${itemsFor(entry, leaf.parseState)}
       <details><summary>S-expression</summary>
-        <pre class="src">${parse.sexp(entry.parsed.tree.rootNode, { fields: true })}</pre></details>`)}`;
+        <pre class="src">${parse.sexp(entry.parsed.tree.rootNode, { fields: true })}</pre></details>`)}</details>`;
 }
 
 /** The subtree under `root`, indented, with `here` marked. */
@@ -1109,19 +1076,27 @@ function capQuery(entry) {
 }
 
 /** Which pattern of which query answers for the caret — exactly one file at a
-    time: the pattern picked in either query; else the highlight pattern that
-    paints the character under the caret; else, for a character inside a
-    handed-over range, the injection pattern that claimed it; else none. */
+    time: the pattern picked in either query; else, for a character in a range
+    this grammar handed over, the injection pattern that claimed it — the
+    innermost such range, since a placeholder sits inside the body it is in —
+    unless a highlight capture reaches deeper; else the highlight pattern that
+    paints the character; else none. A node both captured and handed over,
+    a placeholder, is the injection's: the capture is the host's own stroke,
+    and the lead says so. */
 function queryFocus(entry, found) {
   const inj = picked(entry, "inj");
   if (inj != null) return { file: "injections", index: Number(inj) };
   const pat = picked(entry, "pat");
   if (pat != null) return { file: "highlights", index: Number(pat) };
-  const here = found?.ok ? captureAt(entry, found) : null;
-  if (here) return { file: "highlights", index: here.winner.patternIndex, here };
   const at = caret();
-  const outer = entry.injections.find((one) => one.depth === 0 && one.start <= at && at < one.end) ?? null;
-  if (outer) return { file: "injections", index: outer.patternIndex, outer };
+  const here = found?.ok ? captureAt(entry, found) : null;
+  const outer = entry.injections.filter((one) => one.depth === 0 && one.start <= at && at < one.end).at(-1) ?? null;
+  const node = here?.winner.node;
+  if (outer && (!node || (node.startIndex <= outer.start && outer.end <= node.endIndex))) {
+    const same = node && node.startIndex === outer.start && node.endIndex === outer.end;
+    return { file: "injections", index: outer.patternIndex, outer, here: same ? here : null };
+  }
+  if (here) return { file: "highlights", index: here.winner.patternIndex, here };
   return { file: null, index: null };
 }
 
@@ -1135,9 +1110,12 @@ function captureAt(entry, found, at = caret()) {
   for (const capture of captures) if (!winners.has(capture.node.id)) winners.set(capture.node.id, capture);
   const spanning = captures.filter((c) => c.node.startIndex <= at && at < c.node.endIndex);
   if (!spanning.length) return null;
+  // Captures come in pre-order, so on an equal span the later one is the
+  // deeper node — a value that is nothing but a placeholder, and the
+  // placeholder.
   const innermost = spanning.reduce((best, one) =>
     one.node.startIndex > best.node.startIndex
-    || (one.node.startIndex === best.node.startIndex && one.node.endIndex < best.node.endIndex) ? one : best);
+    || (one.node.startIndex === best.node.startIndex && one.node.endIndex <= best.node.endIndex) ? one : best);
   return { spanning, winners, winner: winners.get(innermost.node.id) };
 }
 
@@ -1171,15 +1149,17 @@ function seeQuery(entry) {
       run.</p>`;
   }
   const at = queryLead(entry);   // first: it settles the marks and where to scroll
+  const injectionFocus = entry.scrollTo?.id === "injections" || picked(entry, "inj") != null;
+  const highlightDoc = html`<h3>Highlight query</h3>${doc("query", entry.query, true, entry.docMarks)}`;
+  const injectionDoc = entry.dialect.injections != null
+    ? html`<h3>Injection query</h3>${doc("injections", entry.injectionsQuery, true, entry.injectMarks)}` : "";
   return html`
     ${lead("query-at", at)}
-    <h3>${entry.dialect.paths.highlights.split("/").pop()}</h3>
-    ${doc("query", entry.query, true, entry.docMarks)}
-    ${entry.dialect.injections != null ? html`
-      <h3>${entry.dialect.paths.injections.split("/").pop()}</h3>
-      ${doc("injections", entry.injectionsQuery, true, entry.injectMarks)}` : ""}
-    <h3>at the caret</h3>
-    ${pane("query-out", queryReport(entry))}`;
+    ${injectionFocus && injectionDoc ? injectionDoc : highlightDoc}
+    ${injectionDoc ? html`<details data-panel="${injectionFocus ? "highlight-query" : "injection-query"}"><summary>${injectionFocus ? "Highlight query" : "Injection query"}</summary>
+      ${injectionFocus ? highlightDoc : injectionDoc}</details>` : ""}
+    <details data-panel="query-diagnostics"><summary>Other captures and query diagnostics</summary>
+      ${pane("query-out", queryReport(entry))}</details>`;
 }
 
 /** Marks for a query document: the patterns that found nothing dimmed, the one
@@ -1198,7 +1178,7 @@ function docMarks(patterns, hits, shown) {
 function queryLead(entry) {
   const found = compiled(entry);
   const focus = queryFocus(entry, found);
-  const file = code(entry.dialect.paths.injections ?? "injections.scm");
+  const file = code((entry.dialect.paths.injections ?? "injections.scm").split("/").pop());
   const records = entry.injections.filter((one) => one.depth === 0);
 
   // The injection query: patterns that handed nothing over dimmed; the one
@@ -1235,44 +1215,56 @@ function queryLead(entry) {
     // "Where are these?": the ranges the picked injection pattern hands over.
     const mine = records.filter((one) => one.patternIndex === focus.index);
     const to = [...new Set(mine.map((one) => one.language))];
-    out = html`<p class="now">Pattern <b>${focus.index}</b> of ${file}, the one the caret is in below — ${mine.length
-      ? html`it hands over ${plural(mine.length, "range")} in this text, outlined above, to
-        ${raw(to.map((name) => fmt(code(name))).join(", "))}.`
-      : injShown ? "it hands nothing over in this text." : "there is no such pattern."}</p>`;
+    out = facts(html`${file} <b>#${focus.index}</b>`,
+      mine.length ? html`hands over ${plural(mine.length, "range")}` : injShown ? "hands over nothing here" : "no such pattern",
+      to.length ? html`→ ${raw(to.map((name) => fmt(code(name))).join(", "))}` : null);
   } else if (picked(entry, "pat") != null) {
     // "Where are these?": the picked highlight pattern's captures, outlined above.
     const mine = captures.filter((capture) => capture.patternIndex === focus.index);
     const names = [...new Set(mine.map((capture) => `@${capture.name}`))];
-    out = html`<p class="now">Pattern <b>${focus.index}</b>, the one the caret is in below — ${mine.length
-      ? html`its ${plural(mine.length, "capture")}${names.length === 1 ? html` (${names[0]})` : html`, as ${names.join(", ")},`}
-        ${mine.length === 1 ? "is" : "are"} outlined above.`
-      : shown ? "it captures nothing in this text." : "there is no such pattern."}</p>`;
+    out = facts(html`highlights <b>#${focus.index}</b>`,
+      mine.length ? plural(mine.length, "capture") : shown ? "captures nothing here" : "no such pattern",
+      names.length ? names.join(", ") : null);
+  } else if (focus.here && focus.outer) {
+    // "What is this?": a node this grammar both captured and handed over — a
+    // placeholder. The injection decides its paint; the capture is the
+    // host's own stroke, for a consumer that injects nothing.
+    const { here, outer } = focus;
+    const node = here.winner.node;
+    entry.spanning = spanningOf(here);
+    out = facts(html`<b>${node.type}</b> ${span(node.startIndex, node.endIndex)}`,
+      html`→ <b>${outer.language}</b>, injections #${outer.patternIndex}`,
+      outer.resolved ? goIn(entry, outer) : html`<span class="warn">no grammar</span>`,
+      html`<b>@${here.winner.name}</b>, highlights #${here.winner.patternIndex}, under ${outer.language}'s paint`);
   } else if (focus.here) {
     // "What is this?": the capture under the caret, and the pattern behind it.
     const { here } = focus;
     const node = here.winner.node;
-    entry.spanning = here.spanning.filter((c) => c !== here.winner).map((capture) => ({
-      patternIndex: capture.patternIndex,
-      name: capture.name,
-      type: capture.node.type,
-      start: capture.node.startIndex,
-      end: capture.node.endIndex,
-      kept: here.winners.get(capture.node.id) === capture,
-    }));
-    out = html`<p class="now">The caret is on ${code(node.type)} (${node.startIndex}–${node.endIndex}), which
-      pattern <b>${here.winner.patternIndex}</b> captures as <b>@${here.winner.name}</b> — marked below.</p>`;
+    entry.spanning = spanningOf(here);
+    out = facts(html`<b>${node.type}</b> ${span(node.startIndex, node.endIndex)}`,
+      html`<b>@${here.winner.name}</b>, highlights #${here.winner.patternIndex}`);
   } else if (focus.outer) {
     // "What is this?": a character handed to another grammar, and the pattern that did it.
     const { outer } = focus;
-    out = html`<p class="now">The character is in a range handed to <b>${outer.language}</b>
-      (${outer.start}–${outer.end}) by pattern <b>${outer.patternIndex}</b> of ${file}, marked below${
-      outer.resolved ? html`: ${goIn(entry, outer)}` : " — a name no loaded grammar answers to"}.</p>`;
+    out = facts(html`→ <b>${outer.language}</b> ${span(outer.start, outer.end)}`,
+      html`injections #${outer.patternIndex}`,
+      outer.resolved ? goIn(entry, outer) : html`<span class="warn">no grammar</span>`);
   } else {
-    out = html`<p class="now">No pattern of either query captures the character under the caret.</p>`;
+    out = facts("no capture here");
   }
   found.query.delete();
   return out;
 }
+
+/** The other captures spanning the caret, for the report. */
+const spanningOf = (here) => here.spanning.filter((c) => c !== here.winner).map((capture) => ({
+  patternIndex: capture.patternIndex,
+  name: capture.name,
+  type: capture.node.type,
+  start: capture.node.startIndex,
+  end: capture.node.endIndex,
+  kept: here.winners.get(capture.node.id) === capture,
+}));
 
 /** The pane: what else spans the caret, and what the whole query did to the
     whole text. */
@@ -1306,13 +1298,8 @@ function queryReport(entry) {
 
 // MARK: 4 paint
 
-function capPaint(entry) {
-  const painted = entry.host.classes.filter(Boolean).length;
-  const share = entry.source.length ? Math.round((painted / entry.source.length) * 100) : 0;
-  const handed = entry.injections.filter((one) => one.depth === 0);
-  return html`<b>Each capture name becomes a colour.</b> ${painted} of
-    ${plural(entry.source.length, "character")} carry a name here, ${share}%${handed.length
-      ? html`; what is still plain is not ${entry.dialect.name}'s to colour — that is the next step` : ""}.`;
+function capPaint() {
+  return html`<b>Capture names become colours through CSS rules.</b>`;
 }
 
 /** The colours are this grammar's own paint; marked over them, everywhere the
@@ -1367,28 +1354,26 @@ function seePaint(entry) {
     ];
   });
 
+  const resolved = winning ? colourOf(winning) : null;
+  const colour = resolved?.value ? html` → ${raw(swatch(resolved.value, resolved.property ?? "colour"))}${code(resolved.value)}` : "";
   let at4;
   if (rule != null && winning) {
     // "Where are these?": one rule of the stylesheet, everywhere it paints here.
     const total = entry.host.classes.filter((cls) => cls && applies(winning, cls)).length;
-    at4 = html`<p class="now">${code(winning.selector)} — ${total
-        ? html`applies to ${plural(total, "character")} in this text, marked above`
-        : "applies to nothing in this text"}${through(applying)}</p>`;
+    at4 = facts(code(winning.selector), total ? plural(total, "character") : "nothing here", colour || null);
   } else {
     // "What is this?": the character under the caret, as this grammar paints it.
-    at4 = html`<p class="now">${own
-      ? html`Painted <b>${own.split(" ").join(".")}</b> — ${ruleList(applying)}${through(applying)}`
+    at4 = own
+      ? facts(html`<b>${own.split(" ").join(".")}</b>`, ruleList(applying), colour || null)
       : handed
-        ? html`Not painted by ${entry.dialect.name}: the character is in a range handed to
-          <b>${handed.language}</b> at the next step (${goIn(entry, handed)}), whose paint is
-          accounted for there.`
-        : "The character under the caret carries no capture, so it takes the plain foreground."}</p>`;
+        ? facts(html`→ <b>${handed.language}</b>, painted at the next step`, goIn(entry, handed))
+        : facts("no capture", "plain foreground");
   }
 
   return html`
     ${lead("paint-at", at4)}
-    <h3>CSS</h3>
-    ${doc("css", CSS, false, marks)}
+    <details data-panel="css" open><summary>CSS rules</summary>
+      ${doc("css", CSS, false, marks)}</details>
     <details><summary>${code(`highlight(text, "${entry.dialect.name}")`)}</summary>
       <pre class="src">${clip(highlight(entry.source, entry.dialect.name), 3000)}</pre></details>`;
 }
@@ -1411,20 +1396,9 @@ const swatch = (colour, title) =>
 
 /** "— rules `.string`, `.string.special` (the later wins)", or the plain foreground. */
 const ruleList = (applying) => (applying.length
-  ? html`${applying.length === 1 ? "rule" : "rules"} ${raw(applying.map((one) => fmt(code(one.selector))).join(", "))}${
+  ? html`${raw(applying.map((one) => fmt(code(one.selector))).join(", "))}${
       applying.length > 1 ? " (the later wins)" : ""}`
-  : "no rule of the stylesheet, so the plain foreground");
-
-/** "— through `--ts-x`, set by this page to ▪ #hex." for the winning rule. */
-function through(applying) {
-  const winning = applying.at(-1);
-  if (!winning) return "";
-  const colour = colourOf(winning);
-  if (!colour.property) return "";
-  return html` — through ${code(colour.property)}, ${colour.set
-    ? html`set by this page to ${raw(swatch(colour.value, colour.property))}${code(colour.value)}`
-    : html`which this page does not set, so the rule's own ${raw(swatch(colour.value, "fallback"))}${code(colour.value)} applies`}.`;
-}
+  : "no rule, plain foreground");
 
 /** The package's stylesheet taken apart: one rule per line, its selector's
     classes, the `--ts-*` properties it reads and the fallback each carries. */
@@ -1462,9 +1436,8 @@ function capInject(entry) {
   const records = entry.injections.filter((one) => one.depth === 0);
   const opaque = records.filter((one) => !one.resolved).length;
   return html`${records.length
-    ? html`<b>${plural(records.length, "range")} went to another grammar</b>; everything else has gone
-      flat.${opaque ? html` <b class="warn">${plural(opaque, "range")} stayed opaque</b>: a name nothing
-      here answers to.` : ""}`
+    ? html`<b>${plural(records.length, "range")} requested another grammar.</b>${opaque
+      ? html` <span class="warn">${opaque} unresolved.</span>` : ""}`
     : html`<b>No range went to another grammar.</b>`}`;
 }
 
@@ -1482,7 +1455,8 @@ function seeInject(entry) {
   return html`
     ${lead("inject-at", injectLead(entry))}
     <h3>inside the range</h3>
-    ${box("inject-chain", chainReport(entry))}`;
+    ${entry.injections.some((one) => one.resolved) ? box("inject-chain", chainReport(entry))
+      : html`<p>${entry.injections.length ? "No loaded grammar can read these ranges." : "No grammar handoff in this text."}</p>`}`;
 }
 
 /** The step's answer, first: the range under the caret and who took it, by
@@ -1491,28 +1465,29 @@ function injectLead(entry) {
   const at = caret();
   const here = injectionAt(entry, at);
   const records = entry.injections.filter((one) => one.depth === 0);
-  const outer = records.find((one) => one.start <= at && at < one.end) ?? null;
-  const parent = here && here.depth > 0
-    ? entry.injections.filter((one) => one.depth === here.depth - 1 && one.start <= here.start && here.end <= one.end).at(-1)
-    : null;
   entry.scrollTo = null;
-  const file = code(entry.dialect.paths.injections ?? "injections.scm");
-  return html`<p class="now">${here
-    ? here.depth > 0
-      ? html`Inside a range <b>${parent.language}</b> gave <b>${here.language}</b>, ${here.depth} deep in
-        the range this grammar gave ${outer.language} (${outer.start}–${outer.end}) by pattern
-        <b>${outer.patternIndex}</b> of ${file}. Both grammars' steps run below, one after the other.`
-      : here.resolved
-        ? html`Inside a range given to <b>${here.language}</b> (${here.start}–${here.end}) by pattern
-          <b>${here.patternIndex}</b> of ${file}. ${here.language}'s own five steps ran inside it:
-          below, one line each, at the caret.`
-        : html`Inside a range the query named <b>${here.language}</b> by pattern
-          <b>${here.patternIndex}</b> of ${file} — a name no loaded grammar answers to, so it stays
-          opaque.`
-    : records.length
-      ? html`Not inside an injected range. Below, the first range's grammar runs its steps at that
-        range's start.`
-      : "Not inside an injected range."}</p>`;
+  if (!here) return facts("not in an injected range",
+    records.some((one) => one.resolved) ? "the first range below" : null);
+  if (!here.resolved) return facts(html`→ <b>${here.language}</b> ${span(here.start, here.end)}`,
+    html`injections #${here.patternIndex}`, html`<span class="warn">no grammar, opaque</span>`);
+  // The route down to the range: its ancestors, innermost last. Ranges from
+  // one grammar can sit inside one another — a placeholder in a body — and
+  // those are siblings, not a route: the body's grammar read the placeholder
+  // masked, and the placeholder went to its own grammar from here.
+  const route = [];
+  for (let one = here; one; ) {
+    route.unshift(one);
+    one = one.depth > 0
+      ? entry.injections.filter((p) => p.depth === one.depth - 1 && p.start <= one.start && one.end <= p.end).at(-1) ?? null
+      : null;
+  }
+  const masked = records.filter((one) => one !== route[0] && one.resolved && one.start <= here.start && here.end <= one.end).at(-1);
+  return facts(
+    html`${entry.dialect.name}${route.map((one) => html` → <b>${one.language}</b>`)}`,
+    html`${span(here.start, here.end)}`,
+    html`${here.depth > 0 ? html`${route[route.length - 2].language}'s ` : ""}injections #${here.patternIndex}`,
+    masked ? html`inside ${masked.language} ${span(masked.start, masked.end)}, masked there` : null,
+  );
 }
 
 /** The five steps before this one, run inside the range under the caret by
@@ -1523,7 +1498,9 @@ function injectLead(entry) {
 function chainReport(entry) {
   const at = caret();
   const records = entry.injections.filter((one) => one.depth === 0);
-  const record = records.find((one) => one.resolved && one.start <= at && at < one.end)
+  // The innermost range under the caret: a placeholder inside a body is the
+  // body's hole and its own range, and its own grammar is the one to run.
+  const record = records.filter((one) => one.resolved && one.start <= at && at < one.end).at(-1)
     ?? records.find((one) => one.resolved) ?? null;
   if (!record) {
     return html`<p class="muted">${records.length
@@ -1590,8 +1567,10 @@ function chainFor(level, rel, index, range) {
   // 4 paint
   const cls = level.host.classes[rel];
   const applying = rulesFor(cls);
+  const colour = applying.length ? colourOf(applying.at(-1)) : null;
   const paint = cls
-    ? html`<b>${cls.split(" ").join(".")}</b> — ${ruleList(applying)}${through(applying)}`
+    ? html`<b>@${cls.split(" ").join(".")}</b> → ${colour?.value
+      ? html`${raw(swatch(colour.value, colour.value))}${code(colour.value)}` : "foreground"}`
     : "no capture: the plain foreground";
 
   // 5 inject
@@ -1606,11 +1585,11 @@ function chainFor(level, rel, index, range) {
   const caption = html`<b>${name} ${range.start}–${range.end}</b>
     <span>of the ${level.parent === view() ? "text" : `${level.parent.language} range`}, at its character ${rel}</span>`;
   return table(null, [
-    stage(1, "lex", lex),
-    stage(2, "parse", parse2),
-    stage(3, "query", query),
-    stage(4, "paint", paint),
-    stage(5, "inject", inject),
+    stage(0, "lex", lex),
+    stage(1, "parse", parse2),
+    stage(2, "query", query),
+    stage(3, "paint", paint),
+    stage(4, "inject", inject),
   ], caption);
 }
 

@@ -6,14 +6,14 @@ editable the whole way, so every step runs against your text, not a recording.
 
 | step | what it does to the text |
 |---|---|
-| 0 plain | nothing. Bytes, and where the caret is in them |
-| 1 lex | shades the tokens the lexer cut, underlines the whitespace ones; stands in the grammar's token ladder — the caret names a token and lights it and everything else that was valid there, a pick in the ladder marks every token of that kind in the text |
-| 2 parse | tints each node a shade darker than its parent, so the tree is on the text; the caret gives its path, its subtree, and the LR items the automaton was in |
-| 3 query | stands in the grammar's two queries, both editable — only one marked at a time: the highlight query at the pattern that claimed the character under the caret, or, inside a handed-over range, the injection query at the pattern that claimed it; the caret in either outlines everything that pattern captured, or every range it hands over |
-| 4 paint | colours it — capture name to colour, which is all highlighting is; stands in the package's stylesheet, each rule's colour on this page beside it — the caret names the capture, marks the rules that paint it, and says which `--ts-*` property the colour came through and what this page resolves it to; a pick of a rule marks everywhere it paints |
-| 5 inject | tints the ranges handed to another grammar, and the ones that stayed opaque; the grammar that took the range under the caret runs the five steps before this one on it, from its own tables — one row per step, at the caret — and again for any range it hands on |
+| 0 plain | shows the unprocessed text and caret position; character encoding is available on demand |
+| 1 lex | marks token boundaries and shows the candidates valid here, why one won, and where a picked token kind occurs |
+| 2 parse | shows nesting on the text and the selected node in the tree; parser states and incremental edits are expandable |
+| 3 query | shows the highlight or injection query responsible for the selection; both queries remain editable |
+| 4 paint | maps the selected capture through its CSS rule to a colour; the full stylesheet remains available for picking rules |
+| 5 inject | shows the grammar handoff and the stages run inside each nested range, with navigation into the first handoff |
 
-Every step stands in one document beside the source on wider screens and directly
+Each step’s result sits beside the source on wider screens and directly
 below it on mobile. Selection works from either side: the caret asks *what is
 this?*, and a pick in the document asks *where are these?* The source scrolls
 within a viewport-sized area, keeping long examples from pushing the analysis
@@ -49,6 +49,19 @@ loads, the queries shown and edited at step 3 are the flat copies it compiled,
 the colours are its `CSS` through the `--ts-*` properties the page sets, and
 the registry at step 5 is `grammars.js`. What the page shows is what the
 package ships, and a broken package is a broken page.
+
+## What stays in the trace
+
+The main view follows the selected text through each stage. Lex shows token
+kinds valid at that position, parse shows the tree, query brings forward the
+query responsible for that position, paint shows the capture-to-colour mapping,
+and inject shows the grammar handoff and the stages inside it.
+
+Character encoding, other token kinds, parser states and incremental edits,
+the alternate query, query diagnostics, and the complete stylesheet remain
+available in expandable sections. Package paths, ABI versions, paint-coverage
+percentages, and repeated parent/child summaries are omitted from the main
+trace. The footer reports parse errors and missing build data.
 
 ## Layout
 

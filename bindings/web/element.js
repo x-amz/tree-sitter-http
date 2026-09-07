@@ -15,8 +15,14 @@
 // and `select` events reach the host, and focus delegates. The host is the
 // box: give it a height and the text scrolls inside; give it none and it
 // grows with the text. `--http-file-padding` and `--http-file-selection` are
-// the two knobs the inside offers; the font, colour, border and background
-// are the host's own styles.
+// the two knobs the inside offers; the font, colour, border, background —
+// and the `display` — are the host's own styles.
+//
+// The two layers are stacked by a box inside the shadow root, never by the
+// host. A declaration in the page always beats a `:host` one, at any
+// specificity — `* { display: block }` beats `:host { display: grid }` — so
+// layout put on the host is layout a consumer's stylesheet can take away
+// without knowing it: the text still paints, and the caret is dead.
 //
 // Nothing is awaited before the element is usable: the text shows at once,
 // and colour arrives when the grammars have loaded.
@@ -24,8 +30,9 @@
 import { ready, highlight, escape, CSS } from "./index.js";
 
 const STYLE = `
-:host { display: grid; grid-template: minmax(0, 1fr) / minmax(0, 1fr); overflow: hidden; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.85rem; line-height: 1.5; tab-size: 4; }
+:host { display: block; overflow: hidden; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.85rem; line-height: 1.5; tab-size: 4; }
 :host([hidden]) { display: none; }
+.box { display: grid; grid-template: minmax(0, 1fr) / minmax(0, 1fr); block-size: 100%; overflow: hidden; }
 pre, textarea { grid-area: 1 / 1; min-width: 0; min-height: 0; margin: 0; padding: var(--http-file-padding, 0.85rem 1rem); border: 0; box-sizing: border-box; font: inherit; letter-spacing: inherit; tab-size: inherit; white-space: pre; overflow-wrap: normal; word-break: normal; background: transparent; color: inherit; }
 pre { overflow: auto; }
 :host([editable]) pre { overflow: hidden; pointer-events: none; }
@@ -52,6 +59,7 @@ function load() {
 export class HttpFile extends HTMLElement {
   static observedAttributes = ["editable", "dialect"];
 
+  #box;
   #pre;
   #textarea = null;
   #text = "";
@@ -60,15 +68,25 @@ export class HttpFile extends HTMLElement {
     super();
     const shadow = this.attachShadow({ mode: "open", delegatesFocus: true });
     shadow.append(Object.assign(document.createElement("style"), { textContent: STYLE }));
+    // The box carries the layout, so the host's own display stays the page's.
+    this.#box = document.createElement("div");
+    this.#box.className = "box";
+    this.#box.part = "box";
     this.#pre = document.createElement("pre");
     this.#pre.part = "text";
-    shadow.append(this.#pre);
+    this.#box.append(this.#pre);
+    shadow.append(this.#box);
   }
 
   connectedCallback() {
     // The light DOM's text is the initial value, one leading newline dropped
-    // as <pre> drops it, so the element can be written like one.
-    if (this.#text === "" && this.textContent !== "") this.#text = this.textContent.replace(/^\n/, "");
+    // as <pre> drops it, so the element can be written like one. On an
+    // upgrade the attribute callbacks run first and may already have laid
+    // out the textarea, so the seed is written through to it.
+    if (this.#text === "" && this.textContent !== "") {
+      this.#text = this.textContent.replace(/^\n/, "");
+      if (this.#textarea) this.#textarea.value = this.#text;
+    }
     this.#layout();
     this.paint();
     live.add(this);
@@ -146,7 +164,7 @@ export class HttpFile extends HTMLElement {
       textarea.addEventListener("select", () => this.dispatchEvent(new Event("select", { bubbles: true })));
       this.#pre.setAttribute("aria-hidden", "true");
       this.#textarea = textarea;
-      this.shadowRoot.append(textarea);
+      this.#box.append(textarea);
     } else if (!this.editable && this.#textarea) {
       this.#text = this.#textarea.value;
       this.#textarea.remove();
