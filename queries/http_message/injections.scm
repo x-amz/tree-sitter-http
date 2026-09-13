@@ -21,6 +21,15 @@
  (#match? @_type "^[ \t]*[^ \t/;]+/([^ \t;]*[+])?[Jj][Ss][Oo][Nn][ \t]*(;|$)")
  (#set! injection.language "json"))
 
+; text/html and application/xhtml+xml. Ahead of xml, whose `+xml` suffix
+; would otherwise claim xhtml.
+((_
+   (header name: (header_name) @_name value: (value) @_type)
+   body: (body) @injection.content)
+ (#match? @_name "^[Cc][Oo][Nn][Tt][Ee][Nn][Tt]-[Tt][Yy][Pp][Ee][ \t]*$")
+ (#match? @_type "^[ \t]*[^ \t/;]+/(([^ \t;]*[+])?[Hh][Tt][Mm][Ll]|[Xx][Hh][Tt][Mm][Ll][+][Xx][Mm][Ll])[ \t]*(;|$)")
+ (#set! injection.language "html"))
+
 ; application/xml, text/xml, image/svg+xml, and any +xml suffix.
 ((_
    (header name: (header_name) @_name value: (value) @_type)
@@ -28,3 +37,11 @@
  (#match? @_name "^[Cc][Oo][Nn][Tt][Ee][Nn][Tt]-[Tt][Yy][Pp][Ee][ \t]*$")
  (#match? @_type "^[ \t]*[^ \t/;]+/([^ \t;]*[+])?[Xx][Mm][Ll][ \t]*(;|$)")
  (#set! injection.language "xml"))
+
+; application/x-www-form-urlencoded.
+((_
+   (header name: (header_name) @_name value: (value) @_type)
+   body: (body) @injection.content)
+ (#match? @_name "^[Cc][Oo][Nn][Tt][Ee][Nn][Tt]-[Tt][Yy][Pp][Ee][ \t]*$")
+ (#match? @_type "^[ \t]*[^ \t/;]+/[Xx]-[Ww][Ww][Ww]-[Ff][Oo][Rr][Mm]-[Uu][Rr][Ll][Ee][Nn][Cc][Oo][Dd][Ee][Dd][ \t]*(;|$)")
+ (#set! injection.language "form_urlencoded"))

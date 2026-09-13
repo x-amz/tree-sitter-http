@@ -167,3 +167,195 @@ A directive argument may follow = with no space
   (directive
     name: (identifier)
     argument: (value (value_text))))
+
+==================
+An unclosed {{ in a header value is text
+==================
+GET https://a.example.com/x
+X-A: {{unclosed
+
+---
+
+(document
+  (request
+    (method)
+    (target
+      (url_text))
+    (header
+      (header_name)
+      (value
+        (value_text)))))
+
+==================
+Stray closers and openers are text
+==================
+GET https://a.example.com/x
+X-A: }}stray{{
+
+---
+
+(document
+  (request
+    (method)
+    (target
+      (url_text))
+    (header
+      (header_name)
+      (value
+        (value_text)))))
+
+==================
+Quadruple braces are a placeholder inside braces
+==================
+GET https://a.example.com/x
+X-A: {{{{a}}}}
+
+---
+
+(document
+  (request
+    (method)
+    (target
+      (url_text))
+    (header
+      (header_name)
+      (value
+        (placeholder
+          (reference
+            (identifier)))))))
+
+==================
+A placeholder inside braces, and the header after it survives
+==================
+GET https://a.example.com/x
+X-Nested: {{ {{a}} }}
+X-Plain: plain text
+
+---
+
+(document
+  (request
+    (method)
+    (target
+      (url_text))
+    (header
+      (header_name)
+      (value
+        (value_text)
+        (placeholder
+          (reference
+            (identifier)))
+        (value_text)))
+    (header
+      (header_name)
+      (value
+        (value_text)))))
+
+==================
+An unclosed {{ in a target is text
+==================
+GET https://x/{{unclosed/{{b}}
+
+---
+
+(document
+  (request
+    (method)
+    (target
+      (url_text)
+      (url_text)
+      (placeholder
+        (reference
+          (identifier))))))
+
+==================
+An unclosed {{ at the end of a target line is text
+==================
+GET https://a.example.com/{{unclosed
+X-A: b
+
+---
+
+(document
+  (request
+    (method)
+    (target
+      (url_text)
+      (url_text))
+    (header
+      (header_name)
+      (value
+        (value_text)))))
+
+==================
+An unclosed {{ at the end of the file is text
+==================
+GET https://a.example.com/{{unclosed
+---
+
+(document
+  (request
+    (method)
+    (target
+      (url_text)
+      (url_text))))
+
+==================
+An unclosed {{ in a header value, with a line after it
+==================
+GET https://a.example.com/x
+X-A: {{unclosed
+X-B: c
+
+---
+
+(document
+  (request
+    (method)
+    (target
+      (url_text))
+    (header
+      (header_name)
+      (value
+        (value_text)))
+    (header
+      (header_name)
+      (value
+        (value_text)))))
+
+==================
+A @ that declares nothing is an error
+:error
+==================
+@
+
+---
+
+==================
+A dynamic may end in a space before its closer
+==================
+GET https://example.com/a
+X-Id: {{$guid }}
+X-Args: {{$randomInt 1 2 }}
+
+---
+
+(document
+  (request
+    (method)
+    (target
+      (url_text))
+    (header
+      (header_name)
+      (value
+        (placeholder
+          (dynamic
+            (dynamic_name)))))
+    (header
+      (header_name)
+      (value
+        (placeholder
+          (dynamic
+            (dynamic_name)
+            (argument)
+            (argument)))))))

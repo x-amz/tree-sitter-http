@@ -156,6 +156,31 @@
           }
         ]
       }
+    },
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "placeholder",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "form_body",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "placeholder",
+          "named": true
+        }
+      ]
     }
   },
   {
@@ -187,7 +212,17 @@
   {
     "type": "json_body",
     "named": true,
-    "fields": {}
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "placeholder",
+          "named": true
+        }
+      ]
+    }
   },
   {
     "type": "path",
@@ -216,7 +251,17 @@
   {
     "type": "raw_body",
     "named": true,
-    "fields": {}
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "placeholder",
+          "named": true
+        }
+      ]
+    }
   },
   {
     "type": "reference",
@@ -254,6 +299,10 @@
         "types": [
           {
             "type": "file_body",
+            "named": true
+          },
+          {
+            "type": "form_body",
             "named": true
           },
           {
@@ -338,6 +387,10 @@
         "types": [
           {
             "type": "file_body",
+            "named": true
+          },
+          {
+            "type": "form_body",
             "named": true
           },
           {
@@ -516,7 +569,17 @@
   {
     "type": "xml_body",
     "named": true,
-    "fields": {}
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "placeholder",
+          "named": true
+        }
+      ]
+    }
   },
   {
     "type": ":",

@@ -71,7 +71,7 @@ POST https://example.com/anything
     (json_body)))
 
 ==================
-A placeholder-only body is raw
+A placeholder-only body is raw, and the placeholder is read
 ==================
 POST https://example.com/anything
 
@@ -84,7 +84,10 @@ POST https://example.com/anything
     (method)
     (target
       (url_text))
-    (raw_body)))
+    (raw_body
+      (placeholder
+        (reference
+          (identifier))))))
 
 ==================
 XML body
@@ -347,3 +350,281 @@ HTTP/1.1 is a protocol
   (response
     (version)
     (status_text)))
+
+==================
+Placeholders inside a JSON body, in string and in value position
+==================
+POST https://example.com/anything
+
+{"name": "{{name}}", "count": {{n}}}
+
+---
+
+(document
+  (request
+    (method)
+    (target
+      (url_text))
+    (json_body
+      (placeholder
+        (reference
+          (identifier)))
+      (placeholder
+        (reference
+          (identifier))))))
+
+==================
+A pretty-printed JSON body opens with a lone brace
+==================
+POST https://example.com/anything
+
+{
+  "a": "{{a}}",
+  "b": [{{b}}]
+}
+
+---
+
+(document
+  (request
+    (method)
+    (target
+      (url_text))
+    (json_body
+      (placeholder
+        (reference
+          (identifier)))
+      (placeholder
+        (reference
+          (identifier))))))
+
+==================
+A placeholder inside an XML body
+==================
+POST https://example.com/anything
+
+<note><to>{{who}}</to></note>
+
+---
+
+(document
+  (request
+    (method)
+    (target
+      (url_text))
+    (xml_body
+      (placeholder
+        (reference
+          (identifier))))))
+
+==================
+Braces in a body that close no placeholder are text
+==================
+POST https://example.com/anything
+
+{{unclosed
+}} stray {
+  {
+}
+
+---
+
+(document
+  (request
+    (method)
+    (target
+      (url_text))
+    (raw_body)))
+
+==================
+A body line that opens with a placeholder, a brace, or an indented placeholder
+==================
+POST https://example.com/anything
+
+first {{a}} line
+{{b}}
+}
+  {{c}}
+{
+
+---
+
+(document
+  (request
+    (method)
+    (target
+      (url_text))
+    (raw_body
+      (placeholder
+        (reference
+          (identifier)))
+      (placeholder
+        (reference
+          (identifier)))
+      (placeholder
+        (reference
+          (identifier))))))
+
+==================
+A placeholder line after a file body
+==================
+POST https://example.com/anything
+
+< ./body.json
+{{trailing}}
+
+---
+
+(document
+  (request
+    (method)
+    (target
+      (url_text))
+    (file_body
+      (path)
+      (placeholder
+        (reference
+          (identifier))))))
+
+==================
+A response body keeps its blank lines and reads its placeholders
+==================
+HTTP/1.1 200 OK
+
+{
+  "a": 1,
+
+  "b": "{{x}}"
+}
+
+
+###
+GET https://example.com/next
+
+---
+
+(document
+  (response
+    (version)
+    (status_code)
+    (status_text)
+    (json_body
+      (placeholder
+        (reference
+          (identifier)))))
+  (section
+    (separator)
+    (request
+      (method)
+      (target
+        (url_text)))))
+
+==================
+A request body still ends at a blank line, placeholders or not
+==================
+POST https://example.com/anything
+
+{"a": "{{a}}"}
+
+{{host}}/next
+
+---
+
+(document
+  (request
+    (method)
+    (target
+      (url_text))
+    (json_body
+      (placeholder
+        (reference
+          (identifier)))))
+  (request
+    (target
+      (placeholder
+        (reference
+          (identifier)))
+      (url_text))))
+
+==================
+Form body, typed by its first pair
+==================
+POST https://example.com/anything
+
+name=foo&token={{token}}
+&password=bar
+
+---
+
+(document
+  (request
+    (method)
+    (target
+      (url_text))
+    (form_body
+      (placeholder
+        (reference
+          (identifier))))))
+
+==================
+An = with spaces around it is prose, and raw
+==================
+POST https://example.com/anything
+
+a = b
+
+---
+
+(document
+  (request
+    (method)
+    (target
+      (url_text))
+    (raw_body)))
+
+==================
+A form body in a response, and one that is a key with no value
+==================
+HTTP/1.1 200 OK
+
+ok=
+
+###
+POST https://example.com/anything
+
+flag=1
+
+---
+
+(document
+  (response
+    (version)
+    (status_code)
+    (status_text)
+    (form_body))
+  (section
+    (separator)
+    (request
+      (method)
+      (target
+        (url_text))
+      (form_body))))
+
+==================
+A brace right after < is not an XML opener
+==================
+POST https://example.com/anything
+
+<{{tag}}>
+
+---
+
+(document
+  (request
+    (method)
+    (target
+      (url_text))
+    (raw_body
+      (placeholder
+        (reference
+          (identifier))))))

@@ -78,6 +78,7 @@ const expected = new Set(RUNTIME);
 for (const one of config.grammars) {
   expected.add(`tree-sitter-${one.name}.wasm`);
   for (const kind of ["highlights", "injections"]) if (kind in one) expected.add(`${one.name}.${kind}.scm`);
+  if (!one.injections) continue;
   for (const [, name] of readFileSync(join(ROOT, one.injections), "utf8").matchAll(/#set!\s+injection\.language\s+"([^"]+)"/g))
     if (!config.grammars.some((g) => g.name === name)) {
       expected.add(`tree-sitter-${name}.wasm`);

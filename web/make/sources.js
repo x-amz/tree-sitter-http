@@ -23,10 +23,11 @@ export function listing(directory, prefix) {
     .map((name) => `${prefix}/${name}`);
 }
 
-/** `{ <dialect>: { corpus: [...], documents: [...], samples: [...] } }` for every grammar in `config`. */
+/** `{ <dialect>: { corpus: [...], documents: [...], samples: [...] } }` for every dialect in `config` —
+    the grammars with an injection query; a body language of this repository has a corpus and nothing the page lists. */
 export function sources(config, { root, web, tree }) {
   const out = {};
-  for (const grammar of config.grammars) {
+  for (const grammar of config.grammars.filter((one) => one.injections)) {
     const dir = grammar.path ?? ".";
     out[grammar.name] = {
       corpus: listing(join(root, dir, "test", "corpus"), `${tree}${dir}/test/corpus`),

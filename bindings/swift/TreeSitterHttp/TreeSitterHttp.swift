@@ -8,6 +8,7 @@
 
 @_exported import CTreeSitterHttp
 import Foundation
+import TreeSitterHTML
 import TreeSitterJSON
 import TreeSitterXML
 
@@ -45,7 +46,22 @@ public enum TreeSitterHttp {
         name: "xml", language: tree_sitter_xml(),
         queries: .dependency("TreeSitterXML_TreeSitterXML"), directory: "xml")
 
-    public static let all: [Grammar] = [file, message, json, xml]
+    /// tree-sitter-html, the language of a body declared `text/html` or
+    /// opening with a doctype or `<html`. Shipped without its injection
+    /// query: that names javascript and css, which this package does not
+    /// carry, and a script inside a body inside a message is not a reading
+    /// anyone asked for.
+    public static let html = Grammar(
+        name: "html", language: tree_sitter_html(),
+        queries: .dependency("TreeSitterHTML_TreeSitterHTML"), directory: "queries", injections: false)
+
+    /// This repository's own body language: `application/x-www-form-urlencoded`,
+    /// the language of a `form_body` and of a message that declares the type.
+    public static let formUrlencoded = Grammar(
+        name: "form_urlencoded", language: tree_sitter_form_urlencoded(),
+        queries: .module, directory: "queries/form_urlencoded")
+
+    public static let all: [Grammar] = [file, message, json, xml, html, formUrlencoded]
 
     /// The grammar an `injection.language` value names. Both dialects'
     /// injection queries name grammars outright — on the wire, the media-type
@@ -56,20 +72,24 @@ public enum TreeSitterHttp {
         case "http_message": return message
         case "json": return json
         case "xml": return xml
+        case "html": return html
+        case "form_urlencoded": return formUrlencoded
         default: return nil
         }
     }
 }
 
 extension Grammar {
-    fileprivate init(name: String, language: OpaquePointer, queries bundle: Bundle, directory: String) {
+    fileprivate init(
+        name: String, language: OpaquePointer, queries bundle: Bundle, directory: String, injections: Bool = true
+    ) {
         guard let highlights = bundle.query("highlights", in: directory) else {
             fatalError("TreeSitterHttp: \(directory)/highlights.scm missing from \(bundle.bundleURL.path)")
         }
         self.name = name
         self.language = language
         self.highlights = highlights
-        self.injections = bundle.query("injections", in: directory)
+        self.injections = injections ? bundle.query("injections", in: directory) : nil
     }
 }
 

@@ -45,12 +45,17 @@ With no bundler, map the specifier once:
 or load it from a CDN, straight from the registry: `https://cdn.jsdelivr.net/npm/tree-sitter-http-web@0.3.0/element.js`.
 
 Two more entry points for a consumer that wants the parts: `tree-sitter-http-web/grammars`
-is the four grammars as URLs (`file`, `message`, `json`, `xml`, `all`,
-`grammar(name)`), and `tree-sitter-http-web/painter` is the engine
-(`bundle`, `analyze`, `injectionNames`), which returns per-character capture
-classes, parse verdicts and the injection tree rather than HTML.
+is the grammars as URLs (`file`, `message`, `json`, `xml`, `html`,
+`formUrlencoded`, `all`, `grammar(name)`), and `tree-sitter-http-web/painter`
+is the engine (`bundle`, `analyze`, `injectionNames`, `injection`), which
+returns per-character capture classes, parse verdicts and the injection tree
+rather than HTML. A body is handed to its language with the placeholders the
+host grammar found inside it masked by digits, so the JSON grammar never
+sees a `{{name}}` and a `{{n}}` in value position is a number to it; the
+layer's paint stops at each one.
 
 Built and published from [x-amz/tree-sitter-http](https://github.com/x-amz/tree-sitter-http)
 at the tag the version names, with provenance. The grammar itself is the
 package `tree-sitter-http`, from the same tag; this package is that grammar
-compiled for the web, with json and xml beside it for the bodies.
+compiled for the web, with json, xml, html and the form-encoded grammar
+beside it for the bodies.

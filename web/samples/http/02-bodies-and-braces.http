@@ -1,0 +1,81 @@
+# Every body language, every brace, every status class. Step through
+# inject to watch each body handed to its grammar with its placeholders
+# cut out, and paint to see the classes.
+
+@host = api.example.com
+
+### Typed by its first line, whatever the header says
+# @name create
+POST https://{{host}}/items
+Content-Type: application/xml
+X-Request-Id: {{$guid}}
+
+{"looks": "like json", "so": "it is json"}
+
+HTTP/1.1 201 Created
+Content-Type: application/json
+
+{
+  "id": 1,
+  "name": "{{name}}",
+  "count": {{n}},
+  "from": "{{create.response.body.$.id}}"
+}
+
+### Typed by the first line, placeholders left to the file dialect
+POST https://{{host}}/items
+
+{"name": "{{name}}", "tags": [{{tag}}, "fixed"]}
+
+HTTP/1.1 304 Not Modified
+
+### An xml opener with nothing to say it is HTML
+GET https://{{host}}/page
+
+HTTP/1.1 404 Not Found
+Content-Type: text/html; charset=utf-8
+
+<p>gone</p>
+
+### HTML, revealed by its opener
+GET https://{{host}}/page
+
+HTTP/1.1 500 Internal Server Error
+
+<!DOCTYPE html>
+<html lang="en"><body><h1>{{title}}</h1></body></html>
+
+### A form body, typed by its first pair
+POST https://{{host}}/login
+
+username={{user}}
+&password=hunter2&remember=
+
+HTTP/1.1 302 Found
+Location: /home
+
+### Braces that close no placeholder are text, everywhere
+GET https://{{host}}/{{unclosed
+X-Stray: }}stray{{
+X-Quad: {{{{a}}}}
+X-Nested: {{ {{b}} }}
+X-Plain: survives
+
+POST https://{{host}}/raw
+
+{{unclosed
+}} stray {
+  {{c}}
+}
+
+### A wire message inside a response body, a form body inside that
+GET https://{{host}}/echo
+
+HTTP/1.1 200 OK
+Content-Type: message/http
+
+POST /echo HTTP/1.1
+Host: {{host}}
+Content-Type: application/x-www-form-urlencoded
+
+a=1&b={{two}}

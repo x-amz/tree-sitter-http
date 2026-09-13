@@ -16,7 +16,7 @@ import { bundle, analyze } from "./painter.js";
 import * as grammars from "./grammars.js";
 
 export { grammars };
-export { bundle, analyze, injectionNames, MAX_DEPTH } from "./painter.js";
+export { bundle, analyze, injectionNames, injection, MAX_DEPTH } from "./painter.js";
 
 /** Text past this is escaped and not parsed; a pasted megabyte is not a mirror's job. */
 export const PAINT_CAP = 128 * 1024;

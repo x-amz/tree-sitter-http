@@ -87,7 +87,7 @@ struct TreeSitterHttpTests {
                 names.insert(String(injections[Range(match.range(at: 1), in: injections)!]))
             }
         }
-        #expect(names == ["http_message", "json", "xml"])
+        #expect(names == ["form_urlencoded", "html", "http_message", "json", "xml"])
         for name in names {
             #expect(TreeSitterHttp.grammar(named: name) != nil, "\(name)")
         }

@@ -28,6 +28,7 @@
   },
   "devDependencies": {
     "@tree-sitter-grammars/tree-sitter-xml": "0.7.0",
+    "tree-sitter-html": "0.23.2",
     "tree-sitter-json": "0.24.8",
     "web-tree-sitter": "0.25.10"
   },

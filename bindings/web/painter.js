@@ -2,6 +2,17 @@
 // the ranges its injection query yields. index.js turns the result into HTML;
 // the guide paints it and reports what it did; check.js asserts over it under
 // node, so what the check exercises is what every consumer runs.
+//
+// An injected language is parsed over the document with an included range
+// — the runtime's own way of reading one language inside another — and
+// never sees a placeholder: every one the host grammar found inside the
+// body is masked, its bytes replaced by digits of the same length, before
+// the range is handed over. Digits are a number in value position and text
+// inside a string, so `"count": {{n}}` is JSON to the JSON grammar and the
+// tree stays whole; cutting the placeholder out instead left a hole that
+// error recovery spread over the object. The mask is never painted: the
+// layer's strokes stop at every placeholder, so the host's paint of it
+// stands. A body that is nothing but placeholders is not parsed.
 
 import { Parser, Query } from "./dist/tree-sitter.js";
 
@@ -50,7 +61,7 @@ export function analyze(b, languages, source, maxDepth = MAX_DEPTH) {
   const classes = new Array(source.length).fill(null);
   const unresolved = new Set();
   const injections = [];
-  const verdict = paint(classes, b, languages, source, 0, 0, unresolved, injections, maxDepth);
+  const verdict = paint(classes, b, languages, source, null, 0, unresolved, injections, maxDepth);
   // An unclosed brace usually leaves no ERROR node at all — the parser inserts
   // the token it wanted and marks the tree — so a count of error nodes is not
   // enough to say whether a range came out clean.
@@ -78,7 +89,7 @@ export function analyze(b, languages, source, maxDepth = MAX_DEPTH) {
  * child's paint lands over its parent's. A node captured by several patterns
  * keeps its first, as tree-sitter does.
  */
-function paintCaptures(classes, query, root, offset) {
+function paintCaptures(classes, query, root, layer) {
   const seen = new Set();
   const captures = [...query.captures(root)]
     .sort((a, b) => a.node.startIndex - b.node.startIndex
@@ -86,54 +97,115 @@ function paintCaptures(classes, query, root, offset) {
   for (const { name, node } of captures) {
     if (seen.has(node.id)) continue;
     seen.add(node.id);
-    classes.fill(name.split(".").join(" "), offset + node.startIndex, offset + node.endIndex);
+    const cls = name.split(".").join(" ");
+    if (!layer) {
+      classes.fill(cls, node.startIndex, node.endIndex);
+      continue;
+    }
+    // An injected layer's stroke stops at its range and at every masked
+    // placeholder: the layer read digits there, and paints none of them.
+    let from = Math.max(node.startIndex, layer.range.startIndex);
+    const to = Math.min(node.endIndex, layer.range.endIndex);
+    for (const hole of layer.holes) {
+      if (hole.endIndex <= from) continue;
+      if (hole.startIndex >= to) break;
+      if (hole.startIndex > from) classes.fill(cls, from, hole.startIndex);
+      from = Math.max(from, hole.endIndex);
+    }
+    if (from < to) classes.fill(cls, from, to);
   }
 }
 
 /**
- * Parse one range with a bundle, paint its captures, and recurse into the
- * ranges its injection query yields. Depth-capped. Returns the parse verdict
- * of this range's tree, and appends what it injected to `injections`.
+ * What an injected language is handed for a content node: the node's own
+ * range, and the placeholders the host grammar found directly inside it,
+ * which the text is masked over and the paint stops at. Deeper layers
+ * inherit the holes above them.
  */
-function paint(classes, b, languages, source, offset, depth, unresolved, injections, maxDepth) {
-  const tree = b.parser.parse(source);
-  paintCaptures(classes, b.query, tree.rootNode, offset);
+export function injection(node, inherited = [], source = node.text) {
+  const holes = node.namedChildren
+    .filter((child) => child.type === "placeholder")
+    .map((child) => ({ startIndex: child.startIndex, endIndex: child.endIndex }));
+  // What is left once the placeholders are gone: whitespace alone is nothing.
+  let rest = "";
+  let at = node.startIndex;
+  for (const hole of holes) { rest += source.slice(at, hole.startIndex); at = hole.endIndex; }
+  rest += source.slice(at, node.endIndex);
+  return {
+    range: { startIndex: node.startIndex, endIndex: node.endIndex,
+             startPosition: node.startPosition, endPosition: node.endPosition },
+    holes: [...inherited, ...holes].sort((a, b) => a.startIndex - b.startIndex),
+    /** Whether anything but placeholders and whitespace is left to read. */
+    empty: /^\s*$/.test(rest),
+  };
+}
+
+/** `text` with every hole overwritten by digits of the same length. */
+function masked(text, holes) {
+  let out = text;
+  for (const hole of holes) {
+    out = out.slice(0, hole.startIndex) + "1".repeat(hole.endIndex - hole.startIndex) + out.slice(hole.endIndex);
+  }
+  return out;
+}
+
+/**
+ * Parse the document with a bundle — all of it, or the `layer` an injection
+ * handed over: one included range over text already masked at its holes —
+ * paint its captures, and recurse into the ranges its own injection query
+ * yields. Depth-capped. Returns the parse verdict of this tree, and appends
+ * what it injected to `injections`.
+ */
+function paint(classes, b, languages, source, layer, depth, unresolved, injections, maxDepth) {
+  const tree = b.parser.parse(source, null, layer ? { includedRanges: [layer.range] } : undefined);
+  paintCaptures(classes, b.query, tree.rootNode, layer);
   if (b.injections && depth < maxDepth) {
+    // One language per range. Several patterns may claim the same node — the
+    // html opener and the xml node kind both name an xml_body — and the node
+    // keeps the earliest pattern in the query, the rule the highlight
+    // captures follow. The order of injections.scm is the routing.
+    const claims = new Map();
     for (const match of b.injections.matches(tree.rootNode)) {
       // injection.language is a #set! property on the pattern, or a captured
       // node whose own text names the language (the markdown-fence form).
       let name = b.injections.setProperties[match.patternIndex]?.["injection.language"];
-      const ranges = [];
       for (const capture of match.captures) {
         if (capture.name === "injection.language") {
           name = source.slice(capture.node.startIndex, capture.node.endIndex);
-        } else if (capture.name === "injection.content") {
-          ranges.push(capture.node);
         }
       }
+      for (const capture of match.captures) {
+        if (capture.name !== "injection.content") continue;
+        const held = claims.get(capture.node.id);
+        if (held && held.patternIndex <= match.patternIndex) continue;
+        claims.set(capture.node.id, { node: capture.node, name, patternIndex: match.patternIndex });
+      }
+    }
+    const ranges = [...claims.values()].sort((a, b) => a.node.startIndex - b.node.startIndex);
+    for (const { node, name, patternIndex } of ranges) {
       const target = name && languages.get(name);
-      for (const node of ranges) {
-        const record = {
-          language: name ?? null,
-          patternIndex: match.patternIndex,
-          depth,
-          start: offset + node.startIndex,
-          end: offset + node.endIndex,
-          resolved: Boolean(target),
-          errors: 0,
-          hasError: false,
-          children: [],
-        };
-        injections.push(record);
-        if (!target) {
-          if (name) unresolved.add(name);
-          continue;
-        }
-        const inner = paint(classes, target, languages, source.slice(node.startIndex, node.endIndex),
-                            offset + node.startIndex, depth + 1, unresolved, record.children, maxDepth);
-        record.errors = inner.errors;
-        record.hasError = inner.hasError;
+      const record = {
+        language: name ?? null,
+        patternIndex,
+        depth,
+        start: node.startIndex,
+        end: node.endIndex,
+        resolved: Boolean(target),
+        errors: 0,
+        hasError: false,
+        children: [],
+      };
+      injections.push(record);
+      if (!target) {
+        if (name) unresolved.add(name);
+        continue;
       }
+      const inner = injection(node, layer?.holes ?? [], source);
+      if (inner.empty) continue;
+      const verdict = paint(classes, target, languages, masked(source, inner.holes), inner,
+                            depth + 1, unresolved, record.children, maxDepth);
+      record.errors = verdict.errors;
+      record.hasError = verdict.hasError;
     }
   }
   const errors = tree.rootNode.descendantsOfType("ERROR").length;

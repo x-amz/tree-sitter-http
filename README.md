@@ -1,6 +1,6 @@
 # tree-sitter-http
 
-Tree-sitter grammars for `.http` files and raw `message/http` wire messages: one source, two dialects. `http` is the file format, written to the format as the `.http` tooling reads it, so the tree an editor sees and the regions a client runs agree. `http_message` is the same grammar with the file-format features switched off.
+Tree-sitter grammars for `.http` files and raw `message/http` wire messages: one source, two dialects. `http` is the file format, written to the format as the `.http` tooling reads it, so the tree an editor sees and the regions a client runs agree. `http_message` is the same grammar with the file-format features switched off. Beside them, `form_urlencoded` is the one body language this repository carries itself; json, xml and html come from their own grammars, and every binding ships all of them.
 
 The guide at [parse.req.to](https://parse.req.to) is the interactive form of this file and the debugger for both grammars: it takes any text through lex, parse, query, paint and inject, computed from the files in this tree. `npm ci && npm run build` builds it into `web/dist/`; serve that directory.
 
@@ -20,12 +20,13 @@ The dialects are spelled `http` and `http_message` wherever an identifier is nee
 
 ```
 common/define-grammar.js    the grammar: module.exports = (wire) => grammar({...})
-common/scanner.h            the _eol external scanner
+common/scanner.h            the external scanner: _eol, and the {{ that opens a placeholder
 <dialect>/grammar.js        a one-line shim calling define-grammar
 <dialect>/src/              generated, committed; scanner.c is a two-line shim
 <dialect>/test/corpus/      the corpus
 <dialect>/test/documents/   whole documents, parsed by every test suite
-queries/<dialect>/          highlights.scm, injections.scm, standard capture names
+form_urlencoded/            the form-encoded body language: grammar.js, src/, test/corpus/
+queries/<grammar>/          highlights.scm, and for a dialect injections.scm, standard capture names
 bindings/swift/             the Swift package
 bindings/web/               the npm package tree-sitter-http-web
 web/                        the guide (web/README.md)
@@ -41,7 +42,7 @@ Edit the grammar, the scanner, the corpus, the queries, and the bindings. Never 
 - **File-format items** — no `comment`, `directive`, `declaration`, `separator`/`section`. The items are request, response, blank.
 - **Implied GET** — the request line requires a method; an unknown first word is an error.
 - **Target continuations and `#` lines in header blocks** — both are `plain`.
-- **Body termination and typing** — a body runs to EOF as one opaque `body` node; no `###`, blank line, or `HTTP/` status line ends it. Its language comes from the message's own Content-Type, which is what `queries/http_message/injections.scm` matches on. The file dialect types a body from its first line (`json_body`, `xml_body`, `file_body`, `raw_body`) and sends a `raw_body` whose message declares `message/http` to `http_message`.
+- **Body termination and typing** — a body runs to EOF as one opaque `body` node; no `###`, blank line, or `HTTP/` status line ends it. Its language comes from the message's own Content-Type, which is what `queries/http_message/injections.scm` matches on. The file dialect types a body from its first line (`json_body`, `xml_body`, `form_body`, `file_body`, `raw_body`) and reads placeholders inside it; `queries/http/injections.scm` routes by that type — the header does not overrule what the text reveals — and sends a `raw_body` whose message declares `message/http`, the one body no opener reveals, to `http_message`.
 
 Each switch is a corpus case under `http_message/test/corpus/`, and the guide computes the rule-by-rule diff between the two generated grammars.
 
@@ -49,8 +50,8 @@ Each switch is a corpus case under `http_message/test/corpus/`, and the guide co
 
 ```bash
 npm ci
-npm run generate                  # both dialects: tree-sitter generate --abi 14
-npm test                          # both corpora
+npm run generate                  # every grammar: tree-sitter generate --abi 14
+npm test                          # every corpus
 swift test                        # loads every grammar, compiles every query, parses every document
 npm run build && npm run check    # the web package and the guide, with their checks
 ```
@@ -59,7 +60,9 @@ npm run build && npm run check    # the web package and the guide, with their ch
 
 The loop: edit `common/define-grammar.js`, add a corpus case in each dialect the change touches, `generate`, `test` (the new case fails), `test --update`, then read the recorded tree and fix until it is the tree you meant. `--update` will happily record a regression; review the diff. A document under `test/documents/` whose name contains `error` is expected to fail; every other one must parse clean.
 
-Whitespace is structure: there are no `extras`, and every space, blank line and line end is a token. Every line-shaped rule ends in `$._eol`, the one external token, a newline or zero-width at EOF. (Matching `"\0"` from the grammar looks like it works in one code path and not another; don't.) Most grammar bugs are a line lexing as the wrong kind. `PREC` at the top of `define-grammar.js` is the ladder that decides it; read its comments before touching a number. The guide's lex step lists, for the token under the caret, every token that was valid there and which won. The request and response rules are `prec.right` so a trailing comment or blank line attaches to them.
+Whitespace is structure: there are no `extras`, and every space, blank line and line end is a token. Every line-shaped rule ends in `$._eol`, an external token, a newline or zero-width at EOF. (Matching `"\0"` from the grammar looks like it works in one code path and not another; don't.) Most grammar bugs are a line lexing as the wrong kind. `PREC` at the top of `define-grammar.js` is the ladder that decides it; read its comments before touching a number. The guide's lex step lists, for the token under the caret, every token that was valid there and which won. The request, response and body rules are `prec.right` so a trailing comment, blank line or brace-led line attaches to them.
+
+A placeholder is the one thing the grammar cannot decide from the token in front of it: whether a `{{` opens one depends on a `}}` further along the line. A placeholder never contains a brace, so the scanner's other token, `_placeholder_open`, looks along the line as far as the first brace and is the `{{` only when that brace is the `}}`. A `{{` it declines is the grammar's own `{{` token, text like any other brace, so an unclosed `{{`, stray closers and openers, and braces around a placeholder are all error-free, and the corpus has cases for each. The look stops at the first brace, which is what keeps a line of braces linear.
 
 Node names are the contract with every consumer's queries. `src/node-types.json` is the vocabulary, and its fields (`method:`, `target:`, `version:`, `name:`, `value:`, `argument:`, `status:`, `reason:`, `body:`, `path:`, `title:`) are what queries should bind; underscore rules never appear in a tree. After a grammar change, recompile each consumer's queries against the grammar: a removed node type fails there and nowhere else. Real `.http` files are the second corpus, and where a precedence change shows up:
 
@@ -75,7 +78,7 @@ One product, `TreeSitterHttp`: the two dialects, their queries, and the grammars
 
 ```swift
 public struct Grammar: @unchecked Sendable {
-    public let name: String            // http, http_message, json, xml
+    public let name: String            // http, http_message, json, xml, html, form_urlencoded
     public let language: OpaquePointer // the TSLanguage
     public let highlights: String
     public let injections: String?
@@ -86,12 +89,14 @@ public enum TreeSitterHttp {
     public static let message: Grammar
     public static let json: Grammar
     public static let xml: Grammar
+    public static let html: Grammar
+    public static let formUrlencoded: Grammar
     public static let all: [Grammar]
     public static func grammar(named name: String) -> Grammar?
 }
 ```
 
-`grammar(named:)` resolves the names the injection queries use. A new body language is one dependency in `Package.swift`, one static here, one pattern in the wire injection query, and a matching devDependency in `bindings/web/package.json`; the Swift and npm pins must name the same grammar tags, and the web build refuses to run until they do. No runtime is linked, so the package builds anywhere SPM does; the tests bring SwiftTreeSitter.
+`grammar(named:)` resolves the names the injection queries use. A new body language from another package is one dependency in `Package.swift`, one static here, a pattern in each injection query, and a matching devDependency in `bindings/web/package.json` and `web/package.json`; the Swift and npm pins must name the same grammar tags, and the web build refuses to run until they do. One of this repository's own, like `form_urlencoded`, is a grammar directory, an entry in `tree-sitter.json` with a highlight query and no injection query — that absence is what makes it a body language rather than a dialect to every build here — a C source in the Swift target, and a static. No runtime is linked, so the package builds anywhere SPM does; the tests bring SwiftTreeSitter.
 
 ## Releasing
 
@@ -106,6 +111,12 @@ Building here needs node ≥ 22 (`npm ci` fetches the pinned tree-sitter CLI 0.2
 - Inside a header block, `header_name` must outrank target text, or every header becomes an implied-GET request.
 - SPM refuses two resources with one basename in a target, so the queries are copied as a directory.
 - Both SPM targets sit at the root, so a new root-level file goes into `Package.swift`'s `unrelated` list or the build warns.
+- An external token bypasses lexical precedence: the scanner is asked first, and what it returns is taken. The scanner's `{{` is safe only because every position a `{{` may stand in accepts a placeholder — a body line does, since it reads them — so the parser, not the lexer, chooses between a body and a request. The one shape that does not hold for is a header whose name is a placeholder, which the scanner would open as a request.
+- Reading `{{` as two `{` tokens and forking the parse at each was tried first. It read every case right and was quadratic in a line of braces: each fork's failing version lived on through error recovery. The scanner is linear because a placeholder cannot contain a brace.
+- A scanner that has advanced and then declines must return false itself. Falling through to the line-end check with the lexer standing at the newline returned an `_eol` whose end was marked after the `{{`, and every unclosed `{{` swallowed the rest of its line.
+- A rule never puts a `_ws` in front of its `_eol`. The lexer runs a line's end in a state it shares with a line's start, where `_blank` is valid and outlasts `_ws` on `  \n`, so the `_ws` was lexed as a `_blank` the rule could not take — which is how trailing spaces after a version left a missing line end. The scanner's `_eol` takes the spaces before it instead. A method with no target, an indented request line and a `@` that declares nothing are errors on purpose, and the corpus says so.
+- The CLI caches each compiled parser by grammar name, not by checkout, and rebuilds only when the sources are newer than the cache. Parsing from a second checkout of this repository — the sweep below, against `main` — leaves the cache holding that checkout's grammar, and every `tree-sitter parse` afterwards runs it. `tree-sitter parse --rebuild` once, in the checkout you mean, before trusting a tree.
+- Cutting a placeholder out of an injected range, rather than masking it, leaves the language a hole: `"count": {{n}}` became `"count": ,` to tree-sitter-json and its recovery painted the whole object as an error. The painter masks with digits and stops its strokes at the mask.
 
 ## What the grammar is written to
 

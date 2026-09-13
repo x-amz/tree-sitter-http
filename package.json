@@ -1,7 +1,7 @@
 {
   "name": "tree-sitter-http",
   "version": "0.0.0",
-  "description": "tree-sitter grammars for .http files and message/http wire messages",
+  "description": "tree-sitter grammars for .http files and message/http wire messages, and for the form-encoded bodies they carry",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -14,6 +14,8 @@
     "http/src",
     "http_message/grammar.js",
     "http_message/src",
+    "form_urlencoded/grammar.js",
+    "form_urlencoded/src",
     "queries",
     "tree-sitter.json"
   ],
@@ -22,8 +24,8 @@
     "web"
   ],
   "scripts": {
-    "generate": "cd http && tree-sitter generate --abi 14 && cd ../http_message && tree-sitter generate --abi 14",
-    "test": "cd http && tree-sitter test && cd ../http_message && tree-sitter test",
+    "generate": "cd http && tree-sitter generate --abi 14 && cd ../http_message && tree-sitter generate --abi 14 && cd ../form_urlencoded && tree-sitter generate --abi 14",
+    "test": "cd http && tree-sitter test && cd ../http_message && tree-sitter test && cd ../form_urlencoded && tree-sitter test",
     "build": "npm run build --workspaces",
     "check": "npm run check --workspaces --if-present"
   },

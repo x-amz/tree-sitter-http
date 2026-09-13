@@ -201,3 +201,47 @@ User-Agent: foo
     (header
       (header_name)
       (value (value_text)))))
+
+==================
+A method alone is an error
+:error
+==================
+GET
+
+---
+
+==================
+An indented request line is an error
+:error
+==================
+  GET https://example.com/a
+Accept: */*
+
+---
+
+==================
+Trailing whitespace after the version, a header value, and a status line
+==================
+GET https://example.com/a HTTP/1.1  
+Accept: */*   
+X-Empty: 
+
+HTTP/1.1 200 
+
+---
+
+(document
+  (request
+    (method)
+    (target
+      (url_text))
+    (version)
+    (header
+      (header_name)
+      (value
+        (value_text)))
+    (header
+      (header_name)))
+  (response
+    (version)
+    (status_code)))

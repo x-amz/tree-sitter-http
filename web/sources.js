@@ -78,8 +78,11 @@ export async function load(reader, on = {}) {
   const config = JSON.parse(await reader.text(ROOT_FILES.config));
   const sources = await optional(ROOT_FILES.sources, {});
 
+  // A dialect hosts other languages: it is the grammar with an injection
+  // query. A grammar of this repository without one is a body language,
+  // read below beside the ones from other packages.
   const dialects = {};
-  for (const grammar of config.grammars) {
+  for (const grammar of config.grammars.filter((one) => one.injections)) {
     const shipped = grammars.grammar(grammar.name);
     if (!shipped) throw new Error(`tree-sitter.json declares ${grammar.name}, which the package does not ship`);
     dialects[grammar.name] = await dialect(reader, grammar, shipped, sources[grammar.name] ?? {});
@@ -87,7 +90,8 @@ export async function load(reader, on = {}) {
 
   // Every other grammar the package ships: the body languages the injection
   // queries name, each a parser and a highlight query, plus the generated
-  // tables the build copied beside the guide from the grammar package.
+  // tables the build copied beside the guide from the grammar package — or
+  // from this repository, for the body language it carries itself.
   const languages = {};
   for (const shipped of grammars.all) {
     if (dialects[shipped.name]) continue;

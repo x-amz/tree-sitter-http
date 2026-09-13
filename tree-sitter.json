@@ -22,11 +22,20 @@
       "highlights": "queries/http_message/highlights.scm",
       "injections": "queries/http_message/injections.scm",
       "external-files": ["common/scanner.h"]
+    },
+    {
+      "name": "form_urlencoded",
+      "camelcase": "FormUrlencoded",
+      "title": "Form-encoded body",
+      "scope": "source.form-urlencoded",
+      "path": "form_urlencoded",
+      "injection-regex": "^(form_urlencoded|application/x-www-form-urlencoded)$",
+      "highlights": "queries/form_urlencoded/highlights.scm"
     }
   ],
   "metadata": {
     "version": "0.0.0",
-    "description": "tree-sitter grammars for .http files and message/http wire messages",
+    "description": "tree-sitter grammars for .http files and message/http wire messages, and for the form-encoded bodies they carry",
     "authors": [{ "name": "X-AMZ LLC", "email": "support@x-amz.dev" }]
   },
   "bindings": { "c": false, "go": false, "node": false, "python": false, "rust": false, "swift": true }

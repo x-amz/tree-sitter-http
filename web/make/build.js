@@ -86,14 +86,22 @@ for (const name of readdirSync(WEB))
 const listed = sources(config, { root: ROOT, web: WEB, tree: TREE });
 writeFileSync(join(DIST, "sources.json"), JSON.stringify(listed, null, 2) + "\n");
 
-// The body languages' tables, from the packages that provide them.
+// The body languages' tables: from this repository for the one it carries,
+// from the packages that provide the rest. A dialect is a grammar with an
+// injection query; the page reads its tree, not tables copied here.
 const table = provided();
-const stand = config.grammars.map((grammar) => [grammar.name, join(ROOT, grammar.path ?? ".")]);
+const stand = config.grammars.filter((grammar) => grammar.injections).map((grammar) => [grammar.name, join(ROOT, grammar.path ?? ".")]);
 for (const shipped of grammars.all) {
-  if (config.grammars.some((grammar) => grammar.name === shipped.name)) continue;
-  const entry = table.get(shipped.name);
-  if (!entry) die(`the package ships \`${shipped.name}\` and no grammar package in devDependencies provides it`);
-  const dir = join(entry.dir, entry.grammar.path ?? ".");
+  const own = config.grammars.find((grammar) => grammar.name === shipped.name);
+  if (own?.injections) continue;
+  let dir;
+  if (own) {
+    dir = join(ROOT, own.path ?? ".");
+  } else {
+    const entry = table.get(shipped.name);
+    if (!entry) die(`the package ships \`${shipped.name}\` and no grammar package in devDependencies provides it`);
+    dir = join(entry.dir, entry.grammar.path ?? ".");
+  }
   for (const generated of ["grammar.json", "node-types.json"])
     copy(join(dir, "src", generated), join(DIST, "languages", shipped.name, generated));
   stand.push([shipped.name, dir]);

@@ -1,0 +1,85 @@
+==================
+Pairs on one line
+==================
+a=1&b=two&c=
+
+---
+
+(document
+  (pair
+    (key)
+    (value))
+  (pair
+    (key)
+    (value))
+  (pair
+    (key)))
+
+==================
+A key with no value
+==================
+flag&other=1
+
+---
+
+(document
+  (pair
+    (key))
+  (pair
+    (key)
+    (value)))
+
+==================
+One pair per line, & leading the continuation
+==================
+name=foo
+&password=bar
+
+---
+
+(document
+  (pair
+    (key)
+    (value))
+  (pair
+    (key)
+    (value)))
+
+==================
+Only the first = splits a pair
+==================
+expr=a=b&q=x%3Dy+z
+
+---
+
+(document
+  (pair
+    (key)
+    (value))
+  (pair
+    (key)
+    (value)))
+
+==================
+A value keeps its inner spaces and loses its edges
+==================
+q=hello world  
+&next=1
+
+---
+
+(document
+  (pair
+    (key)
+    (value))
+  (pair
+    (key)
+    (value)))
+
+==================
+Empty body
+==================
+
+---
+
+(document)

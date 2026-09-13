@@ -79,6 +79,97 @@ for (const [name, b] of bundles) {
   }
 }
 
+// --- what the injection queries route ---------------------------------------
+//
+// The rule the two queries encode. In the file format a body's language is
+// what its own text reveals — the grammar's typed opener — and a
+// Content-Type header does not overrule it; only a wire message, which no
+// opener reveals, is routed by the header. On the wire it is the other way
+// round: declared only, never sniffed. A node keeps the earliest pattern, so
+// the order of each injections.scm is the routing, and these cases pin it.
+// Each is the languages one paint asked for, in document order.
+const routing = [
+  ["http", "POST /x\n\n{\"a\": 1}\n", ["json"]],
+  ["http", "POST /x\n\n[1, 2]\n", ["json"]],
+  ["http", "POST /x\nContent-Type: application/json\n\n{\"a\": 1}\n", ["json"]],
+  ["http", "POST /x\nContent-Type: application/xml\n\n{\"a\": 1}\n", ["json"]],
+  ["http", "POST /x\nContent-Type: application/json\n\nnot json\n", []],
+  ["http", "POST /x\n\n<a/>\n", ["xml"]],
+  ["http", "POST /x\nContent-Type: text/html\n\n<p>hi</p>\n", ["xml"]],
+  ["http", "POST /x\n\n<!DOCTYPE html>\n<p>hi</p>\n", ["html"]],
+  ["http", "POST /x\n\n<html lang=\"en\"><p>hi</p></html>\n", ["html"]],
+  ["http", "POST /x\n\n<htmlish/>\n", ["xml"]],
+  ["http", "POST /x\n\nname=foo&b=2\n", ["form_urlencoded"]],
+  ["http", "POST /x\nContent-Type: application/json\n\nname=foo\n", ["form_urlencoded"]],
+  ["http", "POST /x\nContent-Type: application/x-www-form-urlencoded\n\nfoo bar\n", []],
+  ["http", "POST /x\n\na = b\n", []],
+  ["http", "POST /x\n\n{{payload}}\n", []],
+  ["http", "POST /x\nContent-Type: application/json\n\n< ./body.json\n", []],
+  ["http", "POST /x\nContent-Type: message/http\n\nGET /y HTTP/1.1\nHost: a\n", ["http_message"]],
+  ["http", "POST /x\nContent-Type: message/http\n\n{\"a\": 1}\n", ["json"]],
+  ["http", "POST /x\n\n{\"a\": 1}\n\nHTTP/1.1 200 OK\n\n<b/>\n", ["json", "xml"]],
+  ["http_message", "POST /x HTTP/1.1\nContent-Type: application/json\n\n{\"a\": 1}\n", ["json"]],
+  ["http_message", "POST /x HTTP/1.1\nContent-Type: application/xml\n\n{\"a\": 1}\n", ["xml"]],
+  ["http_message", "POST /x HTTP/1.1\nContent-Type: application/problem+json; charset=utf-8\n\nnot json\n", ["json"]],
+  ["http_message", "POST /x HTTP/1.1\ncontent-type: TEXT/JSON\n\nnot json\n", ["json"]],
+  ["http_message", "POST /x HTTP/1.1\nContent-Type: image/svg+xml\n\n<svg/>\n", ["xml"]],
+  ["http_message", "POST /x HTTP/1.1\n\n{\"a\": 1}\n", []],
+  ["http_message", "HTTP/1.1 200 OK\nContent-Type: text/html; charset=utf-8\n\n<p>hi</p>\n", ["html"]],
+  ["http_message", "HTTP/1.1 200 OK\nContent-Type: application/xhtml+xml\n\n<p/>\n", ["html"]],
+  ["http_message", "HTTP/1.1 200 OK\n\n<!DOCTYPE html>\n", []],
+  ["http_message", "POST /x HTTP/1.1\nContent-Type: application/x-www-form-urlencoded\n\na=1\n", ["form_urlencoded"]],
+  ["http_message", "POST /x HTTP/1.1\n\na=1\n", []],
+];
+for (const [dialect, text, expected] of routing) {
+  const painted = analyze(bundles.get(dialect), bundles, text);
+  const asked = painted.injections.map((one) => one.language);
+  ok(asked.join() === expected.join(),
+     `${dialect}: ${JSON.stringify(text)} routed to [${asked}], not [${expected}]`);
+}
+note(`${routing.length} routing cases`);
+
+// --- what an injected grammar sees ------------------------------------------
+//
+// The placeholders inside a body are the host's. The body's language reads
+// the text with each one masked by digits of the same length — a number in
+// value position, text inside a string — so a `{{name}}` in a JSON string
+// and a `{{n}}` as a JSON value both leave the JSON tree whole, and the
+// layer's paint stops at every placeholder, where the file dialect's paint
+// of it stands. Each case: the text, the class the paint has at an index,
+// and whether the injected layer came back clean.
+const inside = [
+  // the key before the placeholder is JSON's; the placeholder is the host's
+  ["POST /x\n\n{\"name\": \"{{name}}\"}\n",
+   11, "string special key", 18, "string", 19, "punctuation special", 22, "variable", 27, "string", true],
+  // in value position the mask is a number, and the object is whole; the
+  // brackets are null because tree-sitter-json's highlight query does not
+  // capture them, not because anything went wrong
+  ["POST /x\n\n{\"n\": {{n}}}\n",
+   9, null, 11, "string special key", 15, "punctuation special", 17, "variable", 20, null, true],
+  // an array of placeholders
+  ["POST /x\n\n[{{a}}, {{b}}]\n", 9, null, 12, "variable", 19, "variable", 22, null, true],
+  // a body that is nothing but placeholders is not parsed: a raw body routed
+  // by message/http, the one header route the file dialect has
+  ["POST /x\nContent-Type: message/http\n\n{{payload}}\n", 36, "punctuation special", 38, "variable", 46, "punctuation special", true],
+  // a placeholder inside a nested wire message is masked for that layer too
+  ["HTTP/1.1 200 OK\nContent-Type: message/http\n\nPOST /x HTTP/1.1\nHost: {{host}}\n",
+   64, "property", 67, "punctuation special", 70, "variable", 73, "punctuation special", true],
+];
+for (const [text, ...expected] of inside) {
+  const painted = analyze(bundles.get("http"), bundles, text);
+  ok(!painted.hasError, `${JSON.stringify(text)}: the document has an error`);
+  const clean = expected.pop();
+  const [record] = painted.injections;
+  ok(record && record.hasError === !clean,
+     `${JSON.stringify(text)}: the injected layer reports hasError ${record?.hasError}, expected ${!clean}`);
+  for (let i = 0; i < expected.length; i += 2) {
+    const [at, cls] = [expected[i], expected[i + 1]];
+    ok(painted.classes[at] === cls,
+       `${JSON.stringify(text)}: index ${at} (${JSON.stringify(text[at])}) painted ${JSON.stringify(painted.classes[at])}, expected ${JSON.stringify(cls)}`);
+  }
+}
+note(`${inside.length} injected-placeholder cases`);
+
 // Every capture name any loaded highlight query can produce needs a rule in
 // the package's stylesheet, which is the only one the page has: a name with
 // the dots as spaces is a class list, so a rule applies when its classes are
@@ -210,14 +301,22 @@ for (const one of dialects) {
        `${doc.path}: the line report does not cover the text`);
 
     // With no extras, the accepted tokens tile the text exactly — unless the
-    // parser had to recover, which only the error documents ask it to.
+    // parser had to recover, which only the error documents ask it to. A
+    // `{{` forks the parse and each version lexes its own tokens, so the
+    // tiling is a chain through the accepted tokens from the first byte to
+    // the last, along whichever version survived.
     if (!expectsError) {
-      let at = 0;
-      for (const token of analysed.tokens.filter((one) => one.accepted)) {
-        if (token.start !== at) { at = -1; break; }
-        at = token.end;
+      const next = new Map();
+      for (const token of analysed.tokens) {
+        if (token.accepted) (next.get(token.start) ?? next.set(token.start, new Set()).get(token.start)).add(token.end);
       }
-      ok(at === doc.text.length, `${doc.path}: the token stream does not tile the text`);
+      const reached = new Set([0]);
+      const queue = [0];
+      while (queue.length) {
+        const at = queue.pop();
+        for (const end of next.get(at) ?? []) if (!reached.has(end)) { reached.add(end); queue.push(end); }
+      }
+      ok(reached.has(doc.text.length), `${doc.path}: the token stream does not tile the text`);
     }
 
     // An edit is only worth making incrementally if it lands the same tree.

@@ -56,10 +56,11 @@ function emcc() {
   if (!version.includes(` ${EMSCRIPTEN} `)) die(`emcc is not ${EMSCRIPTEN} — install emsdk ${EMSCRIPTEN} at ${emsdk}; found: ${version}`);
 }
 
-/** Every grammar name the injection queries hand a body to. */
+/** Every grammar name the injection queries hand a body to. A grammar of
+    this repository with no injection query is a body language, not a host. */
 function injected(config) {
   const names = new Set();
-  for (const grammar of config.grammars)
+  for (const grammar of config.grammars.filter((one) => one.injections))
     for (const [, name] of read(join(ROOT, grammar.injections)).matchAll(/#set!\s+injection\.language\s+"([^"]+)"/g)) names.add(name);
   return names;
 }
@@ -109,7 +110,7 @@ const built = [];
 for (const grammar of config.grammars) {
   wasm(grammar.name, join(ROOT, grammar.path ?? "."));
   for (const kind of ["highlights", "injections"])
-    copyFileSync(join(ROOT, grammar[kind]), join(DIST, `${grammar.name}.${kind}.scm`));
+    if (grammar[kind]) copyFileSync(join(ROOT, grammar[kind]), join(DIST, `${grammar.name}.${kind}.scm`));
   built.push(grammar.name);
 }
 
