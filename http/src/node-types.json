@@ -1,5 +1,15 @@
 [
   {
+    "type": "&",
+    "named": false,
+    "fields": {}
+  },
+  {
+    "type": "=",
+    "named": false,
+    "fields": {}
+  },
+  {
     "type": "argument",
     "named": true,
     "fields": {}
@@ -169,6 +179,22 @@
     }
   },
   {
+    "type": "fold",
+    "named": true,
+    "fields": {
+      "value": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "value",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
     "type": "form_body",
     "named": true,
     "fields": {},
@@ -177,7 +203,7 @@
       "required": false,
       "types": [
         {
-          "type": "placeholder",
+          "type": "pair",
           "named": true
         }
       ]
@@ -207,6 +233,16 @@
           }
         ]
       }
+    },
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "fold",
+          "named": true
+        }
+      ]
     }
   },
   {
@@ -222,6 +258,32 @@
           "named": true
         }
       ]
+    }
+  },
+  {
+    "type": "pair",
+    "named": true,
+    "fields": {
+      "key": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "key",
+            "named": true
+          }
+        ]
+      },
+      "value": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "value",
+            "named": true
+          }
+        ]
+      }
     }
   },
   {
@@ -368,10 +430,6 @@
         },
         {
           "type": "plain",
-          "named": true
-        },
-        {
-          "type": "trailer",
           "named": true
         }
       ]
@@ -538,11 +596,6 @@
     "fields": {}
   },
   {
-    "type": "trailer",
-    "named": true,
-    "fields": {}
-  },
-  {
     "type": "url_text",
     "named": true,
     "fields": {}
@@ -582,6 +635,10 @@
     }
   },
   {
+    "type": "&",
+    "named": false
+  },
+  {
     "type": ":",
     "named": false
   },
@@ -603,6 +660,10 @@
   },
   {
     "type": "identifier",
+    "named": true
+  },
+  {
+    "type": "key",
     "named": true
   },
   {

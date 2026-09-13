@@ -1,13 +1,13 @@
 ; Body language in the file format: what the body's own text reveals. The
-; grammar typed the body by its first line — `{` or `[` json, `<` xml,
-; `key=` form — and that type is the language; a Content-Type header does
-; not overrule it. Patterns are tried in order and a body keeps the first
-; that claims it, so the html opener stands ahead of the xml it would
-; otherwise be. The one thing the text cannot reveal is a wire message,
-; which opens like any request; that alone is routed by the header. A
-; `file_body` names a file, not its bytes, and is never injected. The wire
-; dialect is the other way round: declared only, never sniffed
-; (queries/http_message/injections.scm).
+; grammar typed the body by its first line — `{` or `[` json, `<` xml — and
+; that type is the language; a Content-Type header does not overrule it.
+; Patterns are tried in order and a body keeps the first that claims it, so
+; the html opener stands ahead of the xml it would otherwise be. The one
+; thing the text cannot reveal is a wire message, which opens like any
+; request; that alone is routed by the header. A `form_body` is the
+; grammar's own pairs and a `file_body` names a file, not its bytes; neither
+; is injected. The wire dialect is the other way round: declared only, never
+; sniffed (queries/http_message/injections.scm).
 
 ((json_body) @injection.content
   (#set! injection.language "json"))
@@ -20,9 +20,6 @@
 
 ((xml_body) @injection.content
   (#set! injection.language "xml"))
-
-((form_body) @injection.content
-  (#set! injection.language "form_urlencoded"))
 
 ; message/http — the echo's answer: a wire message as a body. Only a
 ; `raw_body` can hold one: a wire message opens with a method or a version,

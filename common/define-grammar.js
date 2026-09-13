@@ -17,13 +17,20 @@
 // The .http rules:
 //
 //   - A message starts at a line that is not blank, `###`, a comment, or an
-//     `@name = value` declaration. Its first word is a known method
-//     (case-insensitive), an `HTTP/` version (a response), or the target of
-//     an implied GET. Unknown words are targets, not methods. A method with
-//     no target, an indented request line, and a `@` that declares nothing
-//     are errors. Spaces before a line's end belong to the line end.
-//   - Indented lines beginning with `/`, `?`, or `&` right after the request
-//     line continue the target.
+//     `@name = value` declaration. Its first word is a method — any token
+//     word followed by a space and a target — an `HTTP/` version (a
+//     response), or the target of an implied GET. GET, HEAD, OPTIONS,
+//     DELETE, TRACE and CONNECT are the bodiless methods; every other method
+//     may carry a body. After the target only a version may follow: any
+//     other text there, a method with no target, an indented request line,
+//     and a `@` that declares nothing are errors. Spaces before a line's end
+//     belong to the line end.
+//   - Indented lines beginning with `/`, `?` or `&` right after the request
+//     line continue the target — a fragment never reaches the wire, so `#`
+//     is not one of them. An indented line after a header
+//     continues its value (`fold`). Any other indented line in the header
+//     block is an error: a continuation is always indented, and it continues
+//     something.
 //   - Headers follow until a blank line. For GET/HEAD/OPTIONS/DELETE/TRACE/
 //     CONNECT and implied GET the blank line ends the request; for
 //     POST/PUT/PATCH and responses it starts a body.
@@ -37,6 +44,12 @@
 //     ends only at `###` or EOF, so the blank lines inside it are content.
 //     That asymmetry is what carries `Content-Type: message/http`: the echo
 //     answers with the request's own octets, blank line and body included.
+//   - A form body is pairs, not lines: `pair` nodes with `key` and `value`,
+//     joined by `&` or by a line break — whitespace between pairs is layout,
+//     the format's and never the body's, so a consumer's wire form is the
+//     pairs joined on `&`. The body is typed by its first pair, decided by
+//     the scanner (`_form_start`, zero-width) the way the other types are
+//     decided by their opener tokens.
 //
 // What `wire` switches off:
 //
@@ -44,10 +57,9 @@
 //     ordinary octets.
 //   - File-format items: no `comment`, `directive`, `declaration`,
 //     `separator`/`section`. The item set is request, response, blank.
-//   - Implied GET: the request line requires a method. Unknown first words
-//     are errors, not targets.
-//   - Target continuations: an indented line after the request line is
-//     `plain` (obs-fold), as in a header block.
+//   - Implied GET: the request line requires a method.
+//   - Target continuations: an indented line after the request line is an
+//     error. A header still folds.
 //   - Comments in header blocks: a `#` line is a `header`/`plain` like any
 //     other.
 //   - Body termination and typing: a body runs to EOF — no `###`, no blank
@@ -114,10 +126,12 @@ module.exports = (wire) =>
 
     // From <dialect>/src/scanner.c (common/scanner.h). `_eol` is a newline,
     // or zero-width at end of file. `_placeholder_open` is a `{{` whose `}}`
-    // closes it on the same line with no brace between — the one decision
-    // that needs to look past the token — and exists in the file dialect
-    // alone: on the wire, braces are octets.
-    externals: wire ? ($) => [$._eol] : ($) => [$._eol, $._placeholder_open],
+    // closes it on the same line with no brace between, and `_form_start` is
+    // zero-width at a body's first line when that line opens `key=` — the
+    // two decisions that need to look past the token. Both exist in the
+    // file dialect alone: on the wire, braces are octets and a body is
+    // opaque.
+    externals: wire ? ($) => [$._eol] : ($) => [$._eol, $._placeholder_open, $._form_start],
 
     // The one ambiguity, read both ways: inside a placeholder, the space
     // after a dynamic's last argument may be the trailing space before `}}`,
@@ -227,14 +241,22 @@ module.exports = (wire) =>
               ),
             ),
 
+      // The bodiless set is closed; every other token word is a method that
+      // may carry a body (PROPFIND, REPORT, PURGE). A word the bodiless set
+      // names matches both tokens at one length, and the bodiless rule stands
+      // first, so it wins. A target outlasts a method wherever it carries a
+      // character a method cannot (`:`, `/`, `.`, `{`), so an implied GET's
+      // first word stays its target.
       _bodiless_method: () =>
         token(choice(ci("get"), ci("head"), ci("options"), ci("delete"), ci("trace"), ci("connect"))),
-      _body_method: () => token(choice(ci("post"), ci("put"), ci("patch"))),
+      _body_method: () => /[A-Za-z][A-Za-z0-9-]*/,
 
+      // The target, then at most a version. Anything else after the target
+      // is an error, not a trailer.
       _request_line: ($) =>
         seq(
           field("target", $.target),
-          optional(seq($._ws, choice(field("version", $.version), $.trailer))),
+          optional(seq($._ws, field("version", $.version))),
           optional($._ws),
           $._eol,
         ),
@@ -248,6 +270,8 @@ module.exports = (wire) =>
         ? {}
         : {
             // An indented line continuing the target: `  ?page=2` / `  &limit=10`
+            // / `  /path`. Always indented, always at one of the three
+            // punctuation marks a target can resume at.
             continuation: ($) =>
               seq(
                 $._ws,
@@ -260,8 +284,6 @@ module.exports = (wire) =>
           }),
 
       version: () => token(prec(PREC.RESPONSE, /HTTP\/[0-9.]+/)),
-      // Text after the target that is not a version. Still part of the line.
-      trailer: () => /[^\s][^\r\n]*/,
 
       header: ($) =>
         seq(
@@ -271,29 +293,28 @@ module.exports = (wire) =>
           optional($._ws),
           optional(field("value", $.value)),
           $._eol,
+          repeat($.fold),
         ),
+      // An indented line after a header continues its value — the obs-fold.
+      // The value is the header's; the line break and the indentation are
+      // layout, and a consumer joins the two values with one space. Its
+      // colons are its own (`00:00:00 GMT`): indented, a line can never be
+      // a header, since `header_name` demands a non-space first character.
+      fold: ($) => seq($._ws, field("value", $.value), $._eol),
       // Outranks a target so that, once in the header block, every line is a
       // header (the engine's rule: a colon-less line there is still not a request).
       header_name: () => token(prec(PREC.HEADER, /[^\s:][^:\r\n]*/)),
-      // A line in the header block with no colon — an obs-fold continuation or a
-      // stray line. The engine keeps it as `plain`; so do we, so it is not an error.
-      // Not indented, or indented but (in http) not a target continuation
-      // (`/`, `?`, `&`). Consumes its newline so that on a colon-less line it is
-      // the longer match than `header_name`, and on a header line it cannot match
-      // at all — the two never tie. (Consequences: a colon-less last line with no
-      // trailing newline is an error, and so is a whitespace-only final line —
-      // `_blank` needs its newline and no body may open with whitespace.)
-      // Indentation is read by position, not by content. Unindented, a line is
-      // `plain` only without a colon — with one it is a header. Indented, it can
-      // never be a header in either dialect (`header_name` demands a non-space
-      // first character), so it is a continuation and its colons are its own: a
-      // real obs-fold carries them (`00:00:00`, host:port). Both arms admit them.
-      // The arms differ only in the first character: in http, `/`, `?` and `&`
-      // are left to `_continuation_head`, which claims an indented line that
-      // continues the target.
-      plain: wire
-        ? () => token(prec(PREC.HEADER, /([^\s:][^:\r\n]*|[ \t]+[^\s][^\r\n]*)(\r?\n|\r)/))
-        : () => token(prec(PREC.HEADER, /([^\s:][^:\r\n]*|[ \t]+[^\s:\/?&][^\r\n]*)(\r?\n|\r)/)),
+      // An unindented line in the header block with no colon — stray text.
+      // The engine keeps it as `plain`; so do we, so it is not an error.
+      // Consumes its newline so that on a colon-less line it is the longer
+      // match than `header_name`, and on a header line it cannot match at
+      // all — the two never tie. (Consequences: a colon-less last line with
+      // no trailing newline is an error, and so is a whitespace-only final
+      // line — `_blank` needs its newline and no body may open with
+      // whitespace.) An indented line is never `plain`: it continues the
+      // target (`continuation`) or the header above it (`fold`), and where
+      // there is nothing to continue it is an error.
+      plain: () => token(prec(PREC.HEADER, /[^\s:][^:\r\n]*(\r?\n|\r)/)),
 
       // MARK: Responses
 
@@ -393,15 +414,43 @@ module.exports = (wire) =>
             // another `<`, or a brace (a placeholder, which is raw text).
             _xml_head: () => token(prec(PREC.TYPED_BODY, /<[^\s@<{}][^\r\n{}]*/)),
 
-            // `key=value…`: a first pair whose key has no space in it and whose
-            // value, if any, starts at the `=`. What `a = b` is not — that is
-            // prose, and raw. The first character is not one of the other
-            // openers', so the typed heads never tie.
-            form_body: ($) => prec.right(seq($._form_line, repeat($._body_line))),
-            _terminal_form_body: ($) => prec.right(seq($._form_line, repeat($._terminal_line))),
-            _form_line: ($) => seq($._form_head, repeat($._piece), $._eol),
-            _form_head: () =>
-              token(prec(PREC.TYPED_BODY, /[^\s=&{}<\[][^\s=&{}]*=([^\s{}&][^\r\n{}]*)?/)),
+            // `key=value…`: pairs, opened by a first pair whose key has no
+            // space in it and whose value, if any, starts at the `=`. What
+            // `a = b` is not — that is prose, and raw. The opener is the
+            // scanner's `_form_start`: zero-width, true when the line reads
+            // `key=` from a first character none of the other openers claim.
+            // After it the body is pairs and `&`, over as many lines as the
+            // author laid them out on: a value never spans a line, whitespace
+            // between pairs is layout, and a consumer's wire form is the
+            // pairs joined on `&`. The pair tokens sit at BODY, so what a
+            // line of the body may look like — a status line, a method, a
+            // `#` — stays a line of pairs, and only `###` or the blank line
+            // ends the body, as with every other type.
+            form_body: ($) => prec.right(seq($._form_start, $._form_line, repeat($._form_next))),
+            _terminal_form_body: ($) =>
+              prec.right(seq($._form_start, $._form_line, repeat(choice($._form_next, $._terminal_blank)))),
+            _form_line: ($) => seq($._form_pairs, $._eol),
+            _form_next: ($) => seq(optional($._ws), $._form_pairs, $._eol),
+            _form_pairs: ($) => repeat1(seq(choice($.pair, alias($._amp, "&")), optional($._ws))),
+            // Right-associative: the space after an `=` is the value's lead,
+            // not the gap before the next pair.
+            pair: ($) =>
+              prec.right(
+                seq(
+                  field("key", $.key),
+                  optional(
+                    seq(alias($._eq, "="), optional($._ws), optional(field("value", alias($._form_value, $.value)))),
+                  ),
+                ),
+              ),
+            key: () => token(prec(PREC.BODY, /[^\s=&{}]+/)),
+            _amp: () => token(prec(PREC.BODY, "&")),
+            // A value runs from its first non-space character to the last
+            // before the next `&` or the line's end; the spaces inside are
+            // its own, the ones at its edges are layout. After an `=` the
+            // text outranks a key, so `a=b=c` is one pair.
+            _form_value: ($) => repeat1(choice(alias($._form_text, $.value_text), $.placeholder, $._braces)),
+            _form_text: () => token(prec(PREC.TYPED_BODY, /[^\s&{}]([^&\r\n{}]*[^\s&{}])?/)),
 
             // `< ./file`, `<@ ./file`, `<@name ./file`
             file_body: ($) => prec.right(seq($._file_line, repeat($._body_line))),

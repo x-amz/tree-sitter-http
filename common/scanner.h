@@ -13,9 +13,17 @@
 // same line with no brace between, and that is decided by looking along the
 // line as far as the first brace — a grammar rule cannot look past the
 // token it is deciding; a scanner can. A `{{` that opens nothing is left to
-// the grammar's own `{{` token, which is text. The file dialect alone has
-// placeholders; the wire dialect defines HAS_PLACEHOLDERS 0 and never lists
-// the token.
+// the grammar's own `{{` token, which is text.
+//
+// `_form_start`: zero-width at a body's first line when it opens `key=` — a
+// first character that is not whitespace, `=`, `&`, a brace, `<` or `[`,
+// then key characters, then `=`. The grammar's `key` token cannot say
+// "followed by `=`", and without that a form body's first key would claim
+// every raw body's first word. The token is zero-width so the grammar reads
+// the key itself.
+//
+// The file dialect alone has placeholders and typed bodies; the wire dialect
+// defines HAS_PLACEHOLDERS 0 and lists neither token.
 //
 // Shared by both dialects. External scanner symbols carry the language name,
 // so each `<dialect>/src/scanner.c` defines SCANNER(fn) to prefix its own
@@ -23,7 +31,7 @@
 
 #include "tree_sitter/parser.h"
 
-enum TokenType { EOL, PLACEHOLDER_OPEN };
+enum TokenType { EOL, PLACEHOLDER_OPEN, FORM_START };
 
 void *SCANNER(create)(void) { return NULL; }
 void SCANNER(destroy)(void *payload) {}
@@ -49,6 +57,29 @@ static bool scan_placeholder_open(TSLexer *lexer) {
   }
   return false;
 }
+
+static bool is_space(int32_t c) {
+  return c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\f' || c == '\v';
+}
+
+// At a character that may begin a form key: true when key characters run to
+// an `=`. The end is marked before the look, so the token is zero-width and
+// the grammar's `key` reads what was looked at.
+static bool scan_form_start(TSLexer *lexer) {
+  lexer->mark_end(lexer);
+  while (!lexer->eof(lexer)) {
+    int32_t c = lexer->lookahead;
+    if (c == '=') return true;
+    if (is_space(c) || c == '&' || c == '{' || c == '}') return false;
+    lexer->advance(lexer, false);
+  }
+  return false;
+}
+
+static bool may_begin_key(TSLexer *lexer) {
+  int32_t c = lexer->lookahead;
+  return !lexer->eof(lexer) && !is_space(c) && c != '=' && c != '&' && c != '{' && c != '}' && c != '<' && c != '[';
+}
 #endif
 
 bool SCANNER(scan)(void *payload, TSLexer *lexer, const bool *valid_symbols) {
@@ -59,6 +90,15 @@ bool SCANNER(scan)(void *payload, TSLexer *lexer, const bool *valid_symbols) {
   if (lexer->lookahead == '{') {
     if (valid_symbols[PLACEHOLDER_OPEN] && scan_placeholder_open(lexer)) {
       lexer->result_symbol = PLACEHOLDER_OPEN;
+      return true;
+    }
+    return false;
+  }
+  // A form start is decided only where a key could begin, so a declined
+  // look has read key characters — where no line end can start.
+  if (valid_symbols[FORM_START] && may_begin_key(lexer)) {
+    if (scan_form_start(lexer)) {
+      lexer->result_symbol = FORM_START;
       return true;
     }
     return false;

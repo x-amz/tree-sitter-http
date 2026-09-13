@@ -8,13 +8,13 @@
 (target) @string.special
 (continuation) @string.special
 (version) @constant
-(trailer) @error
 
 ; Headers
 (header
   name: (header_name) @property
   ":" @punctuation.delimiter)
 (header value: (value) @string)
+(fold value: (value) @string)
 
 ; {{placeholders}}
 (placeholder
@@ -62,6 +62,10 @@
 
 ; Bodies
 (file_body path: (path) @string.special)
+(pair key: (key) @property)
+(pair value: (value) @string)
+(pair "=" @punctuation.delimiter)
+(form_body "&" @punctuation.delimiter)
 
 ; Regions the parser could not make sense of
 (ERROR) @error

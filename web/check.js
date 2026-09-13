@@ -99,8 +99,9 @@ const routing = [
   ["http", "POST /x\n\n<!DOCTYPE html>\n<p>hi</p>\n", ["html"]],
   ["http", "POST /x\n\n<html lang=\"en\"><p>hi</p></html>\n", ["html"]],
   ["http", "POST /x\n\n<htmlish/>\n", ["xml"]],
-  ["http", "POST /x\n\nname=foo&b=2\n", ["form_urlencoded"]],
-  ["http", "POST /x\nContent-Type: application/json\n\nname=foo\n", ["form_urlencoded"]],
+  // a form body is the grammar's own pairs: no language is asked for
+  ["http", "POST /x\n\nname=foo&b=2\n", []],
+  ["http", "POST /x\nContent-Type: application/json\n\nname=foo\n", []],
   ["http", "POST /x\nContent-Type: application/x-www-form-urlencoded\n\nfoo bar\n", []],
   ["http", "POST /x\n\na = b\n", []],
   ["http", "POST /x\n\n{{payload}}\n", []],

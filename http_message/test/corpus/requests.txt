@@ -35,10 +35,24 @@ https://example.com/anything
 ---
 
 ==================
-An unknown method is an error, not a target
+Any token word is a method
+==================
+PURGE https://example.com/b HTTP/1.1
+
+---
+
+(document
+  (request
+    (method)
+    (target
+      (url_text))
+    (version)))
+
+==================
+Text after the target that is not a version is an error
 :error
 ==================
-PURGE https://example.com/b
+GET https://example.com/a extra words
 
 ---
 
@@ -102,25 +116,14 @@ X-Note: value # tail
         (value_text)))))
 
 ==================
-An indented line after the request line is plain, not a continuation
+An indented line after the request line continues nothing and is an error
+:error
 ==================
 GET /search HTTP/1.1
   ?q=req
 Accept: text/plain
 
 ---
-
-(document
-  (request
-    (method)
-    (target
-      (url_text))
-    (version)
-    (plain)
-    (header
-      (header_name)
-      (value
-        (value_text)))))
 
 ==================
 Pipelined bodiless requests
@@ -162,7 +165,7 @@ Accept: */*
         (value_text)))))
 
 ==================
-An indented fold with a colon is plain
+An indented line after a header folds into its value, colons and all
 ==================
 GET /a HTTP/1.1
 Expires: Sat,
@@ -180,8 +183,10 @@ Accept: */*
     (header
       (header_name)
       (value
-        (value_text)))
-    (plain)
+        (value_text))
+      (fold
+        (value
+          (value_text))))
     (header
       (header_name)
       (value

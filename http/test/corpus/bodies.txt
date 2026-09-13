@@ -187,23 +187,14 @@ value
     (raw_body)))
 
 ==================
-A bodiless method has no body
+A bodiless method has no body: what follows its blank line is the next message
+:error
 ==================
 DELETE https://example.com/a
 
 {"not": "a body"}
 
 ---
-
-(document
-  (request
-    (method)
-    (target
-      (url_text)))
-  (request
-    (target
-      (url_text))
-    (trailer)))
 
 ==================
 A blank line ends a request body
@@ -562,9 +553,90 @@ name=foo&token={{token}}
     (target
       (url_text))
     (form_body
-      (placeholder
-        (reference
-          (identifier))))))
+      (pair
+        (key)
+        (value
+          (value_text)))
+      (pair
+        (key)
+        (value
+          (placeholder
+            (reference
+              (identifier)))))
+      (pair
+        (key)
+        (value
+          (value_text))))))
+
+==================
+A form body is pairs over lines: a value's inside spaces are its own, its edge spaces are layout
+==================
+POST https://example.com/anything
+
+q=hello world &x= y=2
+  &token=a=b=c
+flag&
+  &
+
+---
+
+(document
+  (request
+    (method)
+    (target
+      (url_text))
+    (form_body
+      (pair
+        (key)
+        (value
+          (value_text)))
+      (pair
+        (key)
+        (value
+          (value_text)))
+      (pair
+        (key)
+        (value
+          (value_text)))
+      (pair
+        (key)))))
+
+==================
+Nothing a form body contains ends it: a status line, a method line and a hash line are pairs
+==================
+POST https://example.com/anything
+
+a=1
+HTTP/1.1 200 OK
+GET https://example.com/b
+# note
+
+---
+
+(document
+  (request
+    (method)
+    (target
+      (url_text))
+    (form_body
+      (pair
+        (key)
+        (value
+          (value_text)))
+      (pair
+        (key))
+      (pair
+        (key))
+      (pair
+        (key))
+      (pair
+        (key))
+      (pair
+        (key))
+      (pair
+        (key))
+      (pair
+        (key)))))
 
 ==================
 An = with spaces around it is prose, and raw
@@ -583,11 +655,13 @@ a = b
     (raw_body)))
 
 ==================
-A form body in a response, and one that is a key with no value
+A form body in a response keeps its blank lines, and one that is a key with no value
 ==================
 HTTP/1.1 200 OK
 
 ok=
+
+more=1
 
 ###
 POST https://example.com/anything
@@ -601,14 +675,24 @@ flag=1
     (version)
     (status_code)
     (status_text)
-    (form_body))
+    (form_body
+      (pair
+        (key))
+      (pair
+        (key)
+        (value
+          (value_text)))))
   (section
     (separator)
     (request
       (method)
       (target
         (url_text))
-      (form_body))))
+      (form_body
+        (pair
+          (key)
+          (value
+            (value_text)))))))
 
 ==================
 A brace right after < is not an XML opener

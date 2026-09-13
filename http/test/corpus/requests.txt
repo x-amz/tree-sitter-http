@@ -25,11 +25,17 @@ POST https://example.com/anything HTTP/1.1
     (version)))
 
 ==================
-Lowercase and unknown methods
+Lowercase and unknown methods; a method outside the bodiless set may carry a body
 ==================
 get https://example.com/a
 
 PURGE https://example.com/b
+###
+M-SEARCH https://example.com/c
+###
+PROPFIND https://example.com/d
+
+<a/>
 
 ---
 
@@ -39,23 +45,62 @@ PURGE https://example.com/b
     (target
       (url_text)))
   (request
+    (method)
     (target
-      (url_text))
-    (trailer)))
+      (url_text)))
+  (section
+    (separator)
+    (request
+      (method)
+      (target
+        (url_text))))
+  (section
+    (separator)
+    (request
+      (method)
+      (target
+        (url_text))
+      (xml_body))))
 
 ==================
-Trailing text that is not a version
+A bare word is a method with no target, and an error
+:error
 ==================
-GET https://example.com/a extra words
+localhost
+
+---
+
+==================
+A target with a character a method cannot carry is an implied GET
+==================
+example.com/a
+
+localhost:8080
+
+{{host}}
 
 ---
 
 (document
   (request
-    (method)
     (target
-      (url_text))
-    (trailer)))
+      (url_text)))
+  (request
+    (target
+      (url_text)))
+  (request
+    (target
+      (placeholder
+        (reference
+          (identifier))))))
+
+==================
+Text after the target that is not a version is an error
+:error
+==================
+GET https://example.com/a extra words
+
+---
 
 ==================
 Headers and comments among them
@@ -91,6 +136,7 @@ Target continuation lines
 GET https://example.com/search
   ?q=req
   &page=2
+  /trailing
 Accept: text/plain
 
 ---
@@ -104,10 +150,32 @@ Accept: text/plain
       (url_text))
     (continuation
       (url_text))
+    (continuation
+      (url_text))
     (header
       (header_name)
       (value
         (value_text)))))
+
+==================
+An indented line after the request line that continues nothing is an error
+:error
+==================
+GET https://example.com/search
+  stray
+Accept: text/plain
+
+---
+
+==================
+A fragment never reaches the wire, so an indented # line continues nothing
+:error
+==================
+GET https://example.com/search
+  #frag
+Accept: text/plain
+
+---
 
 ==================
 Two bodiless requests separated by a blank line
@@ -150,7 +218,6 @@ Lines in the header block that are not headers
 ==================
 GET https://example.com/headers
 X-A: 1
- folded-tail
 X-B: 2
 this line has no colon
 /* not a header */
@@ -167,7 +234,6 @@ X-C: 3
       (header_name)
       (value
         (value_text)))
-    (plain)
     (header
       (header_name)
       (value
@@ -180,11 +246,14 @@ X-C: 3
         (value_text)))))
 
 ==================
-An indented header-block line is a continuation, colons and all
+An indented line after a header folds into its value, colons and all
 ==================
 GET https://example.com/x
 Date: Mon, 01 Jan 2026
   00:00:00 GMT
+	+0000
+X-Empty:
+  {{tail}}
 User-Agent: foo
 
 ---
@@ -196,11 +265,25 @@ User-Agent: foo
       (url_text))
     (header
       (header_name)
-      (value (value_text)))
-    (plain)
+      (value
+        (value_text))
+      (fold
+        (value
+          (value_text)))
+      (fold
+        (value
+          (value_text))))
     (header
       (header_name)
-      (value (value_text)))))
+      (fold
+        (value
+          (placeholder
+            (reference
+              (identifier))))))
+    (header
+      (header_name)
+      (value
+        (value_text)))))
 
 ==================
 A method alone is an error
