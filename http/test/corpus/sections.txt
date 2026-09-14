@@ -177,3 +177,44 @@ a=1
           (key)
           (value
             (value_text)))))))
+
+================================================================================
+A comment is a directive only when @ opens an identifier the line can carry
+================================================================================
+# @
+#@
+// @
+# @ name
+# @=
+# @name.x
+# @name
+#@name
+# @name login
+# @name = login
+# @name=login
+
+--------------------------------------------------------------------------------
+
+(document
+  (comment)
+  (comment)
+  (comment)
+  (comment)
+  (comment)
+  (comment)
+  (directive
+    (identifier))
+  (directive
+    (identifier))
+  (directive
+    (identifier)
+    (value
+      (value_text)))
+  (directive
+    (identifier)
+    (value
+      (value_text)))
+  (directive
+    (identifier)
+    (value
+      (value_text))))

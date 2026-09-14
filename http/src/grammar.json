@@ -180,6 +180,10 @@
         },
         {
           "type": "SYMBOL",
+          "name": "_directive_start"
+        },
+        {
+          "type": "SYMBOL",
           "name": "_at"
         },
         {
@@ -1977,6 +1981,10 @@
     {
       "type": "SYMBOL",
       "name": "_file_open"
+    },
+    {
+      "type": "SYMBOL",
+      "name": "_directive_start"
     }
   ],
   "inline": [],

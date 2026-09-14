@@ -169,7 +169,9 @@ module.exports = (wire) =>
     // line when that line opens `key=`; `_file_open` is the `<` or `<@name`
     // a body's first line opens with when whitespace and a path follow it.
     // Each is a decision that needs to look past the token.
-    externals: wire ? ($) => [$._eol] : ($) => [$._eol, $.placeholder, $._form_start, $._file_open],
+    externals: wire
+      ? ($) => [$._eol]
+      : ($) => [$._eol, $.placeholder, $._form_start, $._file_open, $._directive_start],
 
     // No conflicts: wherever a space could belong to two rules, a closer
     // owns it, and the scanner decides by looking past it.
@@ -202,11 +204,16 @@ module.exports = (wire) =>
 
             // `# text` or `// text`
             comment: ($) => seq($._comment_prefix, optional($._ws), optional($._comment_text), $._eol),
-            // `# @name login`, `// @disabled`, `# @name = login`
+            // `# @name login`, `// @disabled`, `# @name = login`. Until the
+            // line is a directive it is a comment: `_directive_start` is the
+            // scanner's, zero-width at a `@` that an identifier and then a
+            // line end, whitespace or `=` follow, and without it the `@`
+            // token would outrank the comment text and commit the line.
             directive: ($) =>
               seq(
                 $._comment_prefix,
                 optional($._ws),
+                $._directive_start,
                 $._at,
                 field("name", $.identifier),
                 optional(

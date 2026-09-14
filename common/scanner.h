@@ -28,6 +28,12 @@
 // "followed by whitespace" without taking it, and the whitespace is the
 // grammar's `_ws`, so the scanner takes the opener and looks past it.
 //
+// `_directive_start`: zero-width at the `@` after a comment prefix, only
+// when an identifier follows it and the identifier ends the line or is
+// followed by whitespace or `=`. Until a line is a directive it is a
+// comment, and the grammar's `@` token would outrank the comment text and
+// commit the line; the scanner looks along it first.
+//
 // The file dialect alone has placeholders and typed bodies; the wire dialect
 // defines HAS_PLACEHOLDERS 0 and lists `_eol` alone.
 //
@@ -37,7 +43,7 @@
 
 #include "tree_sitter/parser.h"
 
-enum TokenType { EOL, PLACEHOLDER, FORM_START, FILE_OPEN };
+enum TokenType { EOL, PLACEHOLDER, FORM_START, FILE_OPEN, DIRECTIVE_START };
 
 void *SCANNER(create)(void) { return NULL; }
 void SCANNER(destroy)(void *payload) {}
@@ -103,6 +109,23 @@ static bool scan_file_open(TSLexer *lexer) {
   return !lexer->eof(lexer) && !is_space(lexer->lookahead);
 }
 
+// The grammar's `identifier`: no whitespace, `.`, brackets, braces or `=`,
+// and no `$` first.
+static bool is_identifier_char(int32_t c) {
+  return !is_space(c) && c != '.' && c != '[' && c != ']' && c != '{' && c != '}' && c != '=';
+}
+
+// At a `@`: true when an identifier follows and what follows the identifier
+// is the line's end, whitespace or `=`. The end is marked before the look,
+// so the token is zero-width and the grammar reads the `@` and the name.
+static bool scan_directive_start(TSLexer *lexer) {
+  lexer->mark_end(lexer);
+  lexer->advance(lexer, false);
+  if (lexer->eof(lexer) || !is_identifier_char(lexer->lookahead) || lexer->lookahead == '$') return false;
+  do lexer->advance(lexer, false); while (!lexer->eof(lexer) && is_identifier_char(lexer->lookahead));
+  return lexer->eof(lexer) || is_space(lexer->lookahead) || lexer->lookahead == '=';
+}
+
 static bool may_begin_key(TSLexer *lexer) {
   int32_t c = lexer->lookahead;
   return !lexer->eof(lexer) && !is_space(c) && c != '=' && c != '&' && c != '{' && c != '}' && c != '<' && c != '[';
@@ -126,6 +149,16 @@ bool SCANNER(scan)(void *payload, TSLexer *lexer, const bool *valid_symbols) {
   if (lexer->lookahead == '<') {
     if (valid_symbols[FILE_OPEN] && scan_file_open(lexer)) {
       lexer->result_symbol = FILE_OPEN;
+      return true;
+    }
+    return false;
+  }
+  // A `@` is a directive's opener or nothing of the scanner's, by the same
+  // reasoning; it is decided before a form start, where a key could begin
+  // with `@`, and the two are never valid together.
+  if (lexer->lookahead == '@') {
+    if (valid_symbols[DIRECTIVE_START] && scan_directive_start(lexer)) {
+      lexer->result_symbol = DIRECTIVE_START;
       return true;
     }
     return false;
