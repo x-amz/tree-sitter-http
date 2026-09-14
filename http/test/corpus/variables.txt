@@ -241,11 +241,9 @@ X-Plain: plain text
     (header
       (header_name)
       (value
-        (value_text)
         (placeholder
           (reference
-            (identifier)))
-        (value_text)))
+            (identifier)))))
     (header
       (header_name)
       (value

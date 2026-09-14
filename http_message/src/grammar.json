@@ -240,18 +240,6 @@
           ]
         },
         {
-          "type": "CHOICE",
-          "members": [
-            {
-              "type": "SYMBOL",
-              "name": "_ws"
-            },
-            {
-              "type": "BLANK"
-            }
-          ]
-        },
-        {
           "type": "SYMBOL",
           "name": "_eol"
         }
@@ -283,8 +271,13 @@
           "type": "FIELD",
           "name": "name",
           "content": {
-            "type": "SYMBOL",
-            "name": "header_name"
+            "type": "ALIAS",
+            "content": {
+              "type": "SYMBOL",
+              "name": "_name_text"
+            },
+            "named": true,
+            "value": "header_name"
           }
         },
         {
@@ -338,8 +331,17 @@
         {
           "type": "REPEAT",
           "content": {
-            "type": "SYMBOL",
-            "name": "fold"
+            "type": "SEQ",
+            "members": [
+              {
+                "type": "SYMBOL",
+                "name": "_ws"
+              },
+              {
+                "type": "SYMBOL",
+                "name": "fold"
+              }
+            ]
           }
         }
       ]
@@ -347,10 +349,6 @@
     "fold": {
       "type": "SEQ",
       "members": [
-        {
-          "type": "SYMBOL",
-          "name": "_ws"
-        },
         {
           "type": "FIELD",
           "name": "value",
@@ -365,27 +363,29 @@
         }
       ]
     },
-    "header_name": {
+    "_name_text": {
       "type": "TOKEN",
       "content": {
         "type": "PREC",
         "value": 2,
         "content": {
           "type": "PATTERN",
-          "value": "[^\\s:][^:\\r\\n]*"
+          "value": "[^\\s:]([^\\r\\n:]*[^\\s:])?"
         }
       }
     },
     "plain": {
-      "type": "TOKEN",
-      "content": {
-        "type": "PREC",
-        "value": 2,
-        "content": {
-          "type": "PATTERN",
-          "value": "[^\\s:][^:\\r\\n]*(\\r?\\n|\\r)"
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "SYMBOL",
+          "name": "_name_text"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "_eol"
         }
-      }
+      ]
     },
     "response": {
       "type": "PREC_RIGHT",
@@ -543,14 +543,14 @@
     },
     "status_text": {
       "type": "PATTERN",
-      "value": "[^\\s][^\\r\\n]*"
+      "value": "[^\\s]([^\\r\\n]*[^\\s])?"
     },
     "body": {
       "type": "SEQ",
       "members": [
         {
           "type": "SYMBOL",
-          "name": "_body_head"
+          "name": "_body_line"
         },
         {
           "type": "REPEAT",
@@ -561,25 +561,63 @@
         }
       ]
     },
-    "_body_head": {
+    "_body_line": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "CHOICE",
+          "members": [
+            {
+              "type": "SYMBOL",
+              "name": "_ws"
+            },
+            {
+              "type": "BLANK"
+            }
+          ]
+        },
+        {
+          "type": "SYMBOL",
+          "name": "_body_text"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "_eol"
+        }
+      ]
+    },
+    "_body_text": {
       "type": "TOKEN",
       "content": {
         "type": "PREC",
         "value": 8,
         "content": {
           "type": "PATTERN",
-          "value": "[ \\t]*[^\\s][^\\r\\n]*(\\r?\\n|\\r)?"
+          "value": "[^\\s]([^\\r\\n]*[^\\s])?"
         }
       }
     },
     "_terminal_line": {
+      "type": "CHOICE",
+      "members": [
+        {
+          "type": "SYMBOL",
+          "name": "_body_line"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "_terminal_blank"
+        }
+      ]
+    },
+    "_terminal_blank": {
       "type": "TOKEN",
       "content": {
         "type": "PREC",
         "value": 8,
         "content": {
           "type": "PATTERN",
-          "value": "[^\\r\\n]*(\\r?\\n|\\r)|[^\\r\\n]+"
+          "value": "[ \\t]*(\\r?\\n|\\r)"
         }
       }
     },
@@ -589,7 +627,7 @@
     },
     "value_text": {
       "type": "PATTERN",
-      "value": "[^\\r\\n]+"
+      "value": "[^\\s]([^\\r\\n]*[^\\s])?"
     },
     "_ws": {
       "type": "TOKEN",

@@ -107,3 +107,83 @@ Two hashes is a comment, three is a separator
   (section
     (separator
       title: (title))))
+
+==================
+Trailing whitespace on every kind of line is the line end's
+==================
+@host = https://example.com   
+# comment   
+### Title   
+# @name login   
+POST {{host}}/a HTTP/1.1   
+X-A: b   
+  folded   
+this line has no colon   
+
+< ./file   
+###   
+GET {{host}}/b   
+  ?q=1   
+
+HTTP/1.1 200 OK   
+
+a=1   
+  &b=2   
+
+---
+
+(document
+  (declaration
+    (identifier)
+    (value
+      (value_text)))
+  (comment)
+  (section
+    (separator
+      (title))
+    (directive
+      (identifier)
+      (value
+        (value_text)))
+    (request
+      (method)
+      (target
+        (placeholder
+          (reference
+            (identifier)))
+        (url_text))
+      (version)
+      (header
+        (header_name)
+        (value
+          (value_text))
+        (fold
+          (value
+            (value_text))))
+      (plain)
+      (file_body
+        (path))))
+  (section
+    (separator)
+    (request
+      (method)
+      (target
+        (placeholder
+          (reference
+            (identifier)))
+        (url_text))
+      (continuation
+        (url_text)))
+    (response
+      (version)
+      (status_code)
+      (status_text)
+      (form_body
+        (pair
+          (key)
+          (value
+            (value_text)))
+        (pair
+          (key)
+          (value
+            (value_text)))))))

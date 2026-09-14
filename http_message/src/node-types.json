@@ -77,6 +77,11 @@
     }
   },
   {
+    "type": "plain",
+    "named": true,
+    "fields": {}
+  },
+  {
     "type": "request",
     "named": true,
     "fields": {
@@ -197,6 +202,11 @@
     }
   },
   {
+    "type": "status_text",
+    "named": true,
+    "fields": {}
+  },
+  {
     "type": "target",
     "named": true,
     "fields": {},
@@ -227,6 +237,11 @@
     }
   },
   {
+    "type": "value_text",
+    "named": true,
+    "fields": {}
+  },
+  {
     "type": ":",
     "named": false
   },
@@ -239,23 +254,11 @@
     "named": true
   },
   {
-    "type": "plain",
-    "named": true
-  },
-  {
     "type": "status_code",
     "named": true
   },
   {
-    "type": "status_text",
-    "named": true
-  },
-  {
     "type": "url_text",
-    "named": true
-  },
-  {
-    "type": "value_text",
     "named": true
   },
   {

@@ -112,3 +112,27 @@ GET /a HTTP/1.1
 {"not": "a body"}
 
 ---
+
+==================
+A body keeps its indentation and its trailing spaces
+==================
+POST /a HTTP/1.1
+X-A: b   
+
+  first   
+
+  second
+
+---
+
+(document
+  (request
+    (method)
+    (target
+      (url_text))
+    (version)
+    (header
+      (header_name)
+      (value
+        (value_text)))
+    (body)))

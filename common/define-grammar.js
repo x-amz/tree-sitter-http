@@ -23,8 +23,7 @@
 //     DELETE, TRACE and CONNECT are the bodiless methods; every other method
 //     may carry a body. After the target only a version may follow: any
 //     other text there, a method with no target, an indented request line,
-//     and a `@` that declares nothing are errors. Spaces before a line's end
-//     belong to the line end.
+//     and a `@` that declares nothing are errors.
 //   - Indented lines beginning with `/`, `?` or `&` right after the request
 //     line continue the target — a fragment never reaches the wire, so `#`
 //     is not one of them. An indented line after a header
@@ -35,21 +34,26 @@
 //     CONNECT and implied GET the blank line ends the request; for
 //     POST/PUT/PATCH and responses it starts a body.
 //   - A body is lines, typed by its first line (JSON, XML, form-encoded,
-//     `< file`, or raw), with placeholders read inside them. Nothing about an `HTTP/x nnn` line ends one; a body line that
-//     looks like a status line is body text. But a body never *opens* with
-//     one: a status line where a body could begin is a response — a
-//     response is never a body. What ends one is where it sits:
-//     a request's body ends at a blank line — the same blank line that lets
-//     an inline response follow it — while a response's body is terminal and
-//     ends only at `###` or EOF, so the blank lines inside it are content.
-//     That asymmetry is what carries `Content-Type: message/http`: the echo
-//     answers with the request's own octets, blank line and body included.
-//   - A form body is pairs, not lines: `pair` nodes with `key` and `value`,
-//     joined by `&` or by a line break — whitespace between pairs is layout,
-//     the format's and never the body's, so a consumer's wire form is the
-//     pairs joined on `&`. The body is typed by its first pair, decided by
-//     the scanner (`_form_start`, zero-width) the way the other types are
-//     decided by their opener tokens.
+//     `< file`, or raw), with placeholders read inside them. The first
+//     line's first token, after any indentation, is what types it. Nothing
+//     about an `HTTP/x nnn` line ends one; a body line that looks like a
+//     status line is body text. But a body never *opens* with one: a status
+//     line where a body could begin is a response — a response is never a
+//     body. What ends one is where it sits: a request's body ends at a blank
+//     line — the same blank line that lets an inline response follow it —
+//     while a response's body is terminal and ends only at `###` or EOF, so
+//     the blank lines inside it are content. That asymmetry is what carries
+//     `Content-Type: message/http`: the echo answers with the request's own
+//     octets, blank line and body included.
+//   - A form body's pairs are the wire format, `key=value` joined by `&`,
+//     with the one extension every client observes: a line may break before
+//     an `&`, so a pair line after the first begins with one. Nothing else
+//     is pair syntax — a space is never a separator, and a space after `=`
+//     makes the line prose, not a pair. A line that begins with neither is
+//     body text, as in every other type: the body still runs to the blank
+//     line, and nothing it contains ends it. The body is typed by its first
+//     pair, decided by the scanner (`_form_start`, zero-width) the way the
+//     other types are decided by their opener tokens.
 //
 // What `wire` switches off:
 //
@@ -68,13 +72,37 @@
 //     body's type is declared by Content-Type, not sniffed from its first
 //     line; each dialect's queries/injections.scm encodes its rule.
 //
-// Both dialects are line-oriented with no `extras`: whitespace and newlines
-// are tokens (`_eol`, from the external scanner, is also zero-width at EOF).
-// The scanner's other token, `_placeholder_open`, is the file dialect's `{{`
-// where a placeholder opens: a placeholder never contains a brace, so the
-// scanner looks along the line for `}}` as far as the first brace, and a
-// `{{` it declines is the grammar's own `{{` token — text, like every other
-// brace that closes no placeholder.
+// Whitespace. Both dialects are line-oriented with no `extras`, so every
+// space and newline is some token's, and one rule says whose:
+//
+//   - `_ws` is a run of spaces and tabs between two tokens on a line: after
+//     a method, around a `:` or an `=`, inside a placeholder's braces,
+//     between the pieces of a value, and a line's indentation. It is hidden,
+//     so a consumer sees a gap between siblings and never a node.
+//   - A closer owns the whitespace before it, so no rule ever has to say
+//     whose a space is. `_eol` ends a line: a newline, or zero-width at end
+//     of file, with the spaces before it, from the scanner. `}}` closes a
+//     placeholder, and the spaces before it are the scanner's `_closing_ws`.
+//     No rule writes a `_ws` in front of either.
+//   - `_blank` is a whitespace-only line.
+//   - A visible token never begins or ends with whitespace — `text()` below
+//     is the shape of every one that runs along a line. A value is pieces,
+//     text and placeholders, with `_ws` between them, and the `value` node
+//     runs from its first piece to its last. A consumer takes a node's text
+//     and trims nothing.
+//   - A line node — a header, a comment, a fold — spans its `_eol`. An
+//     indented line begins at its first character; the indentation is the
+//     parent's. A body is the exception the other way: its bytes are the
+//     body's, so the body node begins where its first line's indentation
+//     does, and inside it the same tokens apply.
+//
+// The scanner (common/scanner.h) supplies `_eol`, and for the file dialect
+// `_placeholder_open` — the `{{` that opens a placeholder, decided by looking
+// along the line for its `}}` — `_closing_ws`, the spaces a `}}` follows,
+// and the two body openers a token cannot state without looking past
+// itself: `_form_start`, zero-width at a `key=`, and `_file_open`, the `<`
+// or `<@name` that whitespace and a path follow.
+//
 // What a line *is* falls out of lexical precedence, highest first: `###`
 // (10), a typed body's opener (9), a body line (8), a status line (7), a raw
 // body's opener (6), a comment prefix (5), a header name (2),
@@ -82,9 +110,9 @@
 // comment so `# text` inside a body stays body, and it outranks a status
 // line so `HTTP/1.1 …` inside one stays body — but the raw opener sits
 // below the status line, so where a body *could* begin a status line is a
-// response instead. A blank line is the one thing
-// a body line cannot be — where a body may end at one, its line token
-// declines to match it, and `_blank` (1) takes the line instead.
+// response instead. A blank line is the one thing a body line cannot be —
+// where a body may end at one, its tokens decline to match it, and `_blank`
+// (1) outlasts the `_ws` (1) that would otherwise be its indentation.
 
 const PREC = {
   // `###` ends any body, so it outranks every body token.
@@ -114,8 +142,16 @@ const ci = (word) =>
       .join(""),
   );
 
-/** Text that may carry {{placeholders}}: header values, declaration values, directive arguments. */
-const withPlaceholders = ($, text) => repeat1(choice(text, $.placeholder, $._braces));
+/**
+ * A run of text along a line that begins and ends off whitespace, never
+ * containing a character of `except` (the inside of a character class):
+ * text("{}") → /[^\s{}]([^\r\n{}]*[^\s{}])?/. Whitespace inside the run is
+ * the text's own; at its edges it is `_ws` or the `_eol`'s.
+ */
+const text = (except) => new RegExp(`[^\\s${except}]([^\\r\\n${except}]*[^\\s${except}])?`);
+
+/** Pieces — text, placeholders, braces — with `_ws` between them; the node runs from the first to the last. */
+const pieces = ($, piece) => seq(piece, repeat(seq(optional($._ws), piece)));
 
 /** @param {boolean} wire */
 module.exports = (wire) =>
@@ -125,18 +161,21 @@ module.exports = (wire) =>
     extras: () => [],
 
     // From <dialect>/src/scanner.c (common/scanner.h). `_eol` is a newline,
-    // or zero-width at end of file. `_placeholder_open` is a `{{` whose `}}`
-    // closes it on the same line with no brace between, and `_form_start` is
-    // zero-width at a body's first line when that line opens `key=` — the
-    // two decisions that need to look past the token. Both exist in the
-    // file dialect alone: on the wire, braces are octets and a body is
-    // opaque.
-    externals: wire ? ($) => [$._eol] : ($) => [$._eol, $._placeholder_open, $._form_start],
+    // or zero-width at end of file, with the whitespace before it. The rest
+    // exist in the file dialect alone — on the wire, braces are octets and a
+    // body is opaque: `_placeholder_open` is a `{{` whose `}}` closes it on
+    // the same line with no brace between; `_closing_ws` is whitespace that
+    // a `}}` follows; `_form_start` is zero-width at a body's first line
+    // when that line opens `key=`; `_file_open` is the `<` or `<@name` a
+    // body's first line opens with when whitespace and a path follow it.
+    // Each is a decision that needs to look past the token.
+    externals: wire
+      ? ($) => [$._eol]
+      : ($) => [$._eol, $._placeholder_open, $._closing_ws, $._form_start, $._file_open],
 
-    // The one ambiguity, read both ways: inside a placeholder, the space
-    // after a dynamic's last argument may be the trailing space before `}}`,
-    // and only the token after it says which.
-    conflicts: wire ? () => [] : ($) => [[$.dynamic]],
+    // No conflicts: wherever a space could belong to two rules, a closer
+    // owns it, and the scanner decides by looking past it.
+    conflicts: () => [],
 
     rules: {
       document: wire
@@ -161,14 +200,15 @@ module.exports = (wire) =>
         : {
             separator: ($) => seq($._hashes, optional($._ws), optional(field("title", $.title)), $._eol),
             _hashes: () => token(prec(PREC.SEPARATOR, /###+/)),
-            title: () => /[^\s][^\r\n]*/,
+            title: () => text(""),
 
             // `# text` or `// text`
-            comment: ($) => seq($._comment_prefix, optional(/[^\r\n]+/), $._eol),
+            comment: ($) => seq($._comment_prefix, optional($._ws), optional($._comment_text), $._eol),
             // `# @name login`, `// @disabled`, `# @name = login`
             directive: ($) =>
               seq(
                 $._comment_prefix,
+                optional($._ws),
                 $._at,
                 field("name", $.identifier),
                 optional(
@@ -179,7 +219,8 @@ module.exports = (wire) =>
                 ),
                 $._eol,
               ),
-            _comment_prefix: () => token(prec(PREC.COMMENT, /(#{1,2}|\/\/)[ \t]*/)),
+            _comment_prefix: () => token(prec(PREC.COMMENT, /#{1,2}|\/\//)),
+            _comment_text: () => text(""),
 
             // `@host = https://example.com`
             declaration: ($) =>
@@ -213,7 +254,7 @@ module.exports = (wire) =>
               seq(
                 optional(seq(field("method", alias($._bodiless_method, $.method)), $._ws)),
                 $._request_line,
-                repeat($.continuation),
+                repeat(seq($._ws, $.continuation)),
                 repeat(choice($.header, $.comment, $.plain)),
               ),
             ),
@@ -235,7 +276,7 @@ module.exports = (wire) =>
                 field("method", alias($._body_method, $.method)),
                 $._ws,
                 $._request_line,
-                repeat($.continuation),
+                repeat(seq($._ws, $.continuation)),
                 repeat(choice($.header, $.comment, $.plain)),
                 optional(seq(repeat1($._blank), optional(field("body", $._body)))),
               ),
@@ -254,12 +295,7 @@ module.exports = (wire) =>
       // The target, then at most a version. Anything else after the target
       // is an error, not a trailer.
       _request_line: ($) =>
-        seq(
-          field("target", $.target),
-          optional(seq($._ws, field("version", $.version))),
-          optional($._ws),
-          $._eol,
-        ),
+        seq(field("target", $.target), optional(seq($._ws, field("version", $.version))), $._eol),
 
       target: wire
         ? ($) => $.url_text
@@ -270,14 +306,12 @@ module.exports = (wire) =>
         ? {}
         : {
             // An indented line continuing the target: `  ?page=2` / `  &limit=10`
-            // / `  /path`. Always indented, always at one of the three
-            // punctuation marks a target can resume at.
+            // / `  /path`. Always at one of the three punctuation marks a
+            // target can resume at; the indentation is the request's.
             continuation: ($) =>
               seq(
-                $._ws,
                 alias($._continuation_head, $.url_text),
                 repeat(choice($.url_text, $.placeholder, $._braces)),
-                optional($._ws),
                 $._eol,
               ),
             _continuation_head: () => /[\/?&][^\s{}]*/,
@@ -287,34 +321,33 @@ module.exports = (wire) =>
 
       header: ($) =>
         seq(
-          field("name", $.header_name),
+          field("name", alias($._name_text, $.header_name)),
           optional($._ws),
           ":",
           optional($._ws),
           optional(field("value", $.value)),
           $._eol,
-          repeat($.fold),
+          repeat(seq($._ws, $.fold)),
         ),
       // An indented line after a header continues its value — the obs-fold.
       // The value is the header's; the line break and the indentation are
       // layout, and a consumer joins the two values with one space. Its
       // colons are its own (`00:00:00 GMT`): indented, a line can never be
-      // a header, since `header_name` demands a non-space first character.
-      fold: ($) => seq($._ws, field("value", $.value), $._eol),
+      // a header, since `_name_text` demands a non-space first character.
+      fold: ($) => seq(field("value", $.value), $._eol),
+      // The text of an unindented line in the header block, up to a colon or
+      // the line's end: a header's name, or the whole of a `plain` line.
       // Outranks a target so that, once in the header block, every line is a
-      // header (the engine's rule: a colon-less line there is still not a request).
-      header_name: () => token(prec(PREC.HEADER, /[^\s:][^:\r\n]*/)),
+      // header (the engine's rule: a colon-less line there is still not a
+      // request). One token for both, and what follows it decides: a `:`
+      // makes a header, the line's end makes it plain.
+      _name_text: () => token(prec(PREC.HEADER, text(":"))),
       // An unindented line in the header block with no colon — stray text.
-      // The engine keeps it as `plain`; so do we, so it is not an error.
-      // Consumes its newline so that on a colon-less line it is the longer
-      // match than `header_name`, and on a header line it cannot match at
-      // all — the two never tie. (Consequences: a colon-less last line with
-      // no trailing newline is an error, and so is a whitespace-only final
-      // line — `_blank` needs its newline and no body may open with
-      // whitespace.) An indented line is never `plain`: it continues the
-      // target (`continuation`) or the header above it (`fold`), and where
-      // there is nothing to continue it is an error.
-      plain: () => token(prec(PREC.HEADER, /[^\s:][^:\r\n]*(\r?\n|\r)/)),
+      // The engine keeps it as `plain`; so do we, so it is not an error. An
+      // indented line is never `plain`: it continues the target
+      // (`continuation`) or the header above it (`fold`), and where there is
+      // nothing to continue it is an error.
+      plain: ($) => seq($._name_text, $._eol),
 
       // MARK: Responses
 
@@ -350,7 +383,7 @@ module.exports = (wire) =>
           optional(seq(optional($._ws), field("reason", $.status_text))),
         ),
       status_code: () => token(prec(PREC.TRIVIA, /[0-9]+/)),
-      status_text: () => /[^\s][^\r\n]*/,
+      status_text: () => text(""),
 
       // MARK: Bodies — lines of text and placeholders
       //
@@ -365,24 +398,24 @@ module.exports = (wire) =>
       // a line that could continue the body or begin the next message —
       // one opening with `{`, now that a placeholder may — continues it.
       //
-      // A body line is text and placeholders: `_body_text` runs between
-      // braces, `{` and `}` on their own, and `placeholder` read the way a
-      // header value reads it. What decides the line is still its first
-      // token — the typed opener, the raw opener, or a body-line start at
-      // `BODY` — and a whitespace-only line is never one of those, so where
-      // a body may end at a blank line, `_blank` takes it. A line that opens
-      // with a brace or a placeholder is the one shape those starts cannot
-      // carry, and is spelled out beside them.
+      // A body line is its indentation, then pieces with `_ws` between them:
+      // `_body_text` runs between braces, `{` and `}` on their own, and
+      // `placeholder` read the way a header value reads it. What decides the
+      // line is its first token after the indentation — a typed opener, the
+      // raw opener, or a piece at `BODY` — and a whitespace-only line has
+      // none of those, so where a body may end at a blank line, `_blank`
+      // takes it.
       //
-      // wire has one `body` node, terminal like a response's, opaque: its
-      // lines are whole tokens, its first line a separate token only so
-      // blank lines before the body stay the message's.
+      // wire has one `body` node, terminal like a response's, opaque: each
+      // line is its indentation, one text token, and its end.
 
       ...(wire
         ? {
-            body: ($) => seq($._body_head, repeat($._terminal_line)),
-            _body_head: () => token(prec(PREC.BODY, /[ \t]*[^\s][^\r\n]*(\r?\n|\r)?/)),
-            _terminal_line: () => token(prec(PREC.BODY, /[^\r\n]*(\r?\n|\r)|[^\r\n]+/)),
+            body: ($) => seq($._body_line, repeat($._terminal_line)),
+            _body_line: ($) => seq(optional($._ws), $._body_text, $._eol),
+            _body_text: () => token(prec(PREC.BODY, text(""))),
+            _terminal_line: ($) => choice($._body_line, $._terminal_blank),
+            _terminal_blank: () => token(prec(PREC.BODY, /[ \t]*(\r?\n|\r)/)),
           }
         : {
             _body: ($) => choice($.json_body, $.xml_body, $.form_body, $.file_body, $.raw_body),
@@ -404,82 +437,67 @@ module.exports = (wire) =>
             json_body: ($) => prec.right(seq($._json_line, repeat($._body_line))),
             _terminal_json_body: ($) => prec.right(seq($._json_line, repeat($._terminal_line))),
             _json_line: ($) =>
-              choice(seq($._json_head, repeat($._piece), $._eol), prec(1, seq("{", $._eol))),
-            _json_head: () => token(prec(PREC.TYPED_BODY, /\[[^\r\n{}]*|\{[^{\r\n][^\r\n{}]*/)),
+              seq(optional($._ws), choice(seq($._json_head, $._rest), prec(1, seq("{", $._eol)))),
+            _json_head: () =>
+              token(prec(PREC.TYPED_BODY, /\[([^\r\n{}]*[^\s{}])?|\{[ \t]*[^{\s]([^\r\n{}]*[^\s{}])?/)),
 
             xml_body: ($) => prec.right(seq($._xml_line, repeat($._body_line))),
             _terminal_xml_body: ($) => prec.right(seq($._xml_line, repeat($._terminal_line))),
-            _xml_line: ($) => seq($._xml_head, repeat($._piece), $._eol),
+            _xml_line: ($) => seq(optional($._ws), $._xml_head, $._rest),
             // `<` then a tag's first character: not a space, `@` (a file body),
             // another `<`, or a brace (a placeholder, which is raw text).
-            _xml_head: () => token(prec(PREC.TYPED_BODY, /<[^\s@<{}][^\r\n{}]*/)),
+            _xml_head: () => token(prec(PREC.TYPED_BODY, /<[^\s@<{}]([^\r\n{}]*[^\s{}])?/)),
 
-            // `key=value…`: pairs, opened by a first pair whose key has no
-            // space in it and whose value, if any, starts at the `=`. What
-            // `a = b` is not — that is prose, and raw. The opener is the
+            // `key=value&key=value`, the wire format: pairs joined by `&`, and
+            // a line may break before an `&`, so a pair line after the first
+            // begins with one. That is all the pair syntax there is — no
+            // space separates anything, and a space after `=` makes the line
+            // prose and the body raw, like `a = b`. Any other line is body
+            // text, so the body runs to the blank line like every other type
+            // and a status line inside it stays inside it. The opener is the
             // scanner's `_form_start`: zero-width, true when the line reads
-            // `key=` from a first character none of the other openers claim.
-            // After it the body is pairs and `&`, over as many lines as the
-            // author laid them out on: a value never spans a line, whitespace
-            // between pairs is layout, and a consumer's wire form is the
-            // pairs joined on `&`. The pair tokens sit at BODY, so what a
-            // line of the body may look like — a status line, a method, a
-            // `#` — stays a line of pairs, and only `###` or the blank line
-            // ends the body, as with every other type.
-            form_body: ($) => prec.right(seq($._form_start, $._form_line, repeat($._form_next))),
+            // `key=` from a first character none of the other openers claim,
+            // with no space after the `=`. A pair line's `&` is its opener,
+            // at TYPED_BODY, so it outranks the text a body line would read.
+            form_body: ($) => prec.right(seq($._form_line, repeat(choice($._form_next, $._body_line)))),
             _terminal_form_body: ($) =>
-              prec.right(seq($._form_start, $._form_line, repeat(choice($._form_next, $._terminal_blank)))),
-            _form_line: ($) => seq($._form_pairs, $._eol),
-            _form_next: ($) => seq(optional($._ws), $._form_pairs, $._eol),
-            _form_pairs: ($) => repeat1(seq(choice($.pair, alias($._amp, "&")), optional($._ws))),
-            // Right-associative: the space after an `=` is the value's lead,
-            // not the gap before the next pair.
+              prec.right(seq($._form_line, repeat(choice($._form_next, $._terminal_line)))),
+            _form_line: ($) => seq(optional($._ws), $._form_start, $.pair, repeat($._amp_pair), $._eol),
+            _form_next: ($) => seq(optional($._ws), $._amp_pair, repeat($._amp_pair), $._eol),
+            _amp_pair: ($) => seq(alias($._amp, "&"), optional($.pair)),
             pair: ($) =>
-              prec.right(
-                seq(
-                  field("key", $.key),
-                  optional(
-                    seq(alias($._eq, "="), optional($._ws), optional(field("value", alias($._form_value, $.value)))),
-                  ),
-                ),
+              seq(
+                field("key", $.key),
+                optional(seq(alias($._eq, "="), optional(field("value", alias($._form_value, $.value))))),
               ),
             key: () => token(prec(PREC.BODY, /[^\s=&{}]+/)),
-            _amp: () => token(prec(PREC.BODY, "&")),
-            // A value runs from its first non-space character to the last
-            // before the next `&` or the line's end; the spaces inside are
-            // its own, the ones at its edges are layout. After an `=` the
-            // text outranks a key, so `a=b=c` is one pair.
-            _form_value: ($) => repeat1(choice(alias($._form_text, $.value_text), $.placeholder, $._braces)),
-            _form_text: () => token(prec(PREC.TYPED_BODY, /[^\s&{}]([^&\r\n{}]*[^\s&{}])?/)),
+            _amp: () => token(prec(PREC.TYPED_BODY, "&")),
+            // A value runs from the `=` to the next `&` or the line's end, its
+            // bytes verbatim; after an `=` the text outranks a key, so
+            // `a=b=c` is one pair.
+            _form_value: ($) => pieces($, choice(alias($._form_text, $.value_text), $.placeholder, $._braces)),
+            _form_text: () => token(prec(PREC.TYPED_BODY, text("&{}"))),
 
-            // `< ./file`, `<@ ./file`, `<@name ./file`
+            // `< ./file`, `<@ ./file`, `<@name ./file`: the scanner's opener,
+            // whitespace, the path.
             file_body: ($) => prec.right(seq($._file_line, repeat($._body_line))),
             _terminal_file_body: ($) => prec.right(seq($._file_line, repeat($._terminal_line))),
-            _file_line: ($) => seq($._file_head, field("path", $.path), optional($._ws), $._eol),
-            _file_head: () => token(prec(PREC.TYPED_BODY, /<(@[^\s]*)?[ \t]+/)),
-            path: () => /[^\s][^\r\n]*/,
+            _file_line: ($) => seq(optional($._ws), $._file_open, $._ws, field("path", $.path), $._eol),
+            path: () => text(""),
 
             // A raw body's first line: the raw opener, or a line that opens
             // with a placeholder or braces — the json opener has declined a
             // `{` only when another brace follows it.
             raw_body: ($) => prec.right(seq($._raw_line, repeat($._body_line))),
             _terminal_raw_body: ($) => prec.right(seq($._raw_line, repeat($._terminal_line))),
-            _raw_line: ($) =>
-              choice(
-                seq($._raw_start, repeat($._piece), $._eol),
-                seq(optional($._ws), choice($.placeholder, $._braces), repeat($._piece), $._eol),
-              ),
-            _raw_start: () => token(prec(PREC.RAW_OPENER, /[ \t]*[^\s{}][^\r\n{}]*/)),
+            _raw_line: ($) => seq(optional($._ws), choice($._raw_start, $.placeholder, $._braces), $._rest),
+            _raw_start: () => token(prec(PREC.RAW_OPENER, text("{}"))),
 
-            // A line inside a body: text from its first non-space character,
-            // or whitespace then braces or a placeholder. Never blank.
-            _body_line: ($) =>
-              seq(
-                choice($._body_start, seq(optional($._ws), choice($.placeholder, $._braces))),
-                repeat($._piece),
-                $._eol,
-              ),
-            _body_start: () => token(prec(PREC.BODY, /[ \t]*[^\s{}][^\r\n{}]*/)),
+            // A line inside a body: indentation, then pieces. Never blank.
+            _body_line: ($) => seq(optional($._ws), $._piece, $._rest),
+            // The rest of a body line after its first token: more pieces, then
+            // the line's end.
+            _rest: ($) => seq(repeat(seq(optional($._ws), $._piece)), $._eol),
 
             // A terminal body's line: the same, or a blank line — content
             // here, so its token outranks `_blank`.
@@ -487,13 +505,13 @@ module.exports = (wire) =>
             _terminal_blank: () => token(prec(PREC.BODY, /[ \t]*(\r?\n|\r)/)),
 
             _piece: ($) => choice($._body_text, $.placeholder, $._braces),
-            _body_text: () => token(prec(PREC.BODY, /[^\r\n{}]+/)),
+            _body_text: () => token(prec(PREC.BODY, text("{}"))),
           }),
 
       // MARK: Values and placeholders
 
-      value: wire ? ($) => $.value_text : ($) => withPlaceholders($, $.value_text),
-      value_text: wire ? () => /[^\r\n]+/ : () => /[^\r\n{}]+/,
+      value: wire ? ($) => $.value_text : ($) => pieces($, choice($.value_text, $.placeholder, $._braces)),
+      value_text: wire ? () => text("") : () => text("{}"),
 
       ...(wire
         ? {}
@@ -509,15 +527,14 @@ module.exports = (wire) =>
                 alias($._placeholder_open, "{{"),
                 optional($._ws),
                 optional(choice($.dynamic, $.reference)),
-                optional($._ws),
+                optional($._closing_ws),
                 "}}",
               ),
             _braces: () => choice("{{", "}}", "{", "}"),
             reference: ($) => seq(field("name", $.identifier), optional(field("path", $.path_expression))),
             path_expression: () => /[.\[][^\s{}]*/,
-            // No associativity: the space after the last argument may be the
-            // placeholder's trailing space before `}}`, and only what follows
-            // it says which — the one conflict declared above.
+            // The space after the last argument is the `}}`'s, so an argument
+            // always follows a `_ws` here.
             dynamic: ($) => seq(field("name", $.dynamic_name), repeat(seq($._ws, $.argument))),
             dynamic_name: () => /\$[^\s{}]*/,
             argument: () => /[^\s{}]+/,

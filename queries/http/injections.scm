@@ -31,6 +31,6 @@
 ((_
    (header name: (header_name) @_content_type value: (value) @_media_type)
    body: (raw_body) @injection.content)
- (#match? @_content_type "^[Cc][Oo][Nn][Tt][Ee][Nn][Tt]-[Tt][Yy][Pp][Ee][ \t]*$")
- (#match? @_media_type "^[ \t]*[Mm][Ee][Ss][Ss][Aa][Gg][Ee]/[Hh][Tt][Tt][Pp][ \t]*(;|$)")
+ (#match? @_content_type "^[Cc][Oo][Nn][Tt][Ee][Nn][Tt]-[Tt][Yy][Pp][Ee]$")
+ (#match? @_media_type "^[Mm][Ee][Ss][Ss][Aa][Gg][Ee]/[Hh][Tt][Tt][Pp][ \t]*(;|$)")
  (#set! injection.language "http_message"))

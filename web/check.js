@@ -285,6 +285,20 @@ for (const one of dialects) {
   // parse the same files against the C parser — and the page's samples ride
   // the same checks.
   const unattributed = new Set();
+  // Whitespace is never a node's edge. Every named node begins on a character
+  // that is not a space or tab and ends on one — or on the line end it owns —
+  // so a consumer takes a node's text and trims nothing. The document begins
+  // wherever the text does, and a body's bytes are its own, indentation
+  // included; those two are the whole exception. Error documents recover
+  // however they can and are not held to it.
+  const bytes = new Set(["document", "body", "json_body", "xml_body", "form_body", "file_body", "raw_body"]);
+  const blankEdged = (node, found = []) => {
+    if (node.isNamed && !bytes.has(node.type) && /^[ \t]|[ \t]$/.test(node.text)) {
+      found.push(`${node.type} at ${node.startPosition.row + 1}:${node.startPosition.column + 1} ${JSON.stringify(node.text)}`);
+    }
+    for (const child of node.children) blankEdged(child, found);
+    return found;
+  };
   /** Where a document came from, so the run says which set a line is from. */
   const origin = (path) =>
     (path.includes("/test/documents/") ? "test/documents/" : "samples/") + path.split("/").pop();
@@ -318,6 +332,7 @@ for (const one of dialects) {
         for (const end of next.get(at) ?? []) if (!reached.has(end)) { reached.add(end); queue.push(end); }
       }
       ok(reached.has(doc.text.length), `${doc.path}: the token stream does not tile the text`);
+      for (const edge of blankEdged(analysed.tree.rootNode)) fail(`${doc.path}: whitespace at a node's edge — ${edge}`);
     }
 
     // An edit is only worth making incrementally if it lands the same tree.
@@ -357,6 +372,16 @@ for (const one of dialects) {
 
   // The corpus, against the wasm the package ships rather than the CLI's own build.
   const files = dialect.corpus.map((file) => corpus.runFile(parsers, file, process.platform === "darwin" ? "macos" : process.platform));
+  // And the same edge rule over every clean corpus input, which is where the
+  // whitespace cases live.
+  for (const file of dialect.corpus) {
+    for (const testCase of corpus.parseCorpus(file.text, file.path)) {
+      if (testCase.attributes.error || testCase.attributes.skip) continue;
+      const tree = parsers.parser.parse(testCase.input);
+      for (const edge of blankEdged(tree.rootNode)) fail(`${file.path} — ${testCase.name}: whitespace at a node's edge — ${edge}`);
+      tree.delete();
+    }
+  }
   const total = corpus.summarise(files);
   ok(total.failed === 0, `${dialect.name}: ${total.failed} corpus cases fail`);
   for (const failure of total.failures) fail(`${dialect.name}: ${failure.name} — ${failure.diff}`);
