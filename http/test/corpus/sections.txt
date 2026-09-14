@@ -34,9 +34,7 @@ GET {{host}}/done
     (request
       (method)
       (target
-        (placeholder
-          (reference
-            (identifier)))
+        (placeholder)
         (url_text))
       (json_body)))
   (section
@@ -44,9 +42,7 @@ GET {{host}}/done
     (request
       (method)
       (target
-        (placeholder
-          (reference
-            (identifier)))
+        (placeholder)
         (url_text))))
   (section
     (separator
@@ -54,9 +50,7 @@ GET {{host}}/done
     (request
       (method)
       (target
-        (placeholder
-          (reference
-            (identifier)))
+        (placeholder)
         (url_text)))))
 
 ==================
@@ -148,9 +142,7 @@ a=1
     (request
       (method)
       (target
-        (placeholder
-          (reference
-            (identifier)))
+        (placeholder)
         (url_text))
       (version)
       (header
@@ -168,9 +160,7 @@ a=1
     (request
       (method)
       (target
-        (placeholder
-          (reference
-            (identifier)))
+        (placeholder)
         (url_text))
       (continuation
         (url_text)))

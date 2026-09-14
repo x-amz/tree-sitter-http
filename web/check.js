@@ -99,12 +99,13 @@ const routing = [
   ["http", "POST /x\n\n<!DOCTYPE html>\n<p>hi</p>\n", ["html"]],
   ["http", "POST /x\n\n<html lang=\"en\"><p>hi</p></html>\n", ["html"]],
   ["http", "POST /x\n\n<htmlish/>\n", ["xml"]],
-  // a form body is the grammar's own pairs: no language is asked for
+  // a form body is the grammar's own pairs: no language is asked for; a
+  // placeholder is
   ["http", "POST /x\n\nname=foo&b=2\n", []],
   ["http", "POST /x\nContent-Type: application/json\n\nname=foo\n", []],
   ["http", "POST /x\nContent-Type: application/x-www-form-urlencoded\n\nfoo bar\n", []],
   ["http", "POST /x\n\na = b\n", []],
-  ["http", "POST /x\n\n{{payload}}\n", []],
+  ["http", "POST /x\n\n{{payload}}\n", ["expression"]],
   ["http", "POST /x\nContent-Type: application/json\n\n< ./body.json\n", []],
   ["http", "POST /x\nContent-Type: message/http\n\nGET /y HTTP/1.1\nHost: a\n", ["http_message"]],
   ["http", "POST /x\nContent-Type: message/http\n\n{\"a\": 1}\n", ["json"]],

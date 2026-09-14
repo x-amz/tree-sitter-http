@@ -26,6 +26,7 @@ common/scanner.h            the external scanner: _eol, and the {{ that opens a 
 <dialect>/test/corpus/      the corpus
 <dialect>/test/documents/   whole documents, parsed by every test suite
 form_urlencoded/            the form-encoded body language: grammar.js, src/, test/corpus/
+expression/                 the expression language, what a placeholder holds: grammar.js, src/, test/corpus/
 queries/<grammar>/          highlights.scm, and for a dialect injections.scm, standard capture names
 bindings/swift/             the Swift package
 bindings/web/               the npm package tree-sitter-http-web
@@ -62,7 +63,7 @@ The loop: edit `common/define-grammar.js`, add a corpus case in each dialect the
 
 Whitespace is structure: there are no `extras`, and every space, blank line and line end is a token, under one rule. `_ws` is the whitespace between two tokens on a line, hidden; `_eol` ends the line and owns the whitespace before it; a visible token never begins or ends with whitespace, so a consumer takes a node's text and trims nothing — `web/check.js` holds every document and corpus input to that. Every line-shaped rule ends in `$._eol`, an external token, a newline or zero-width at EOF. (Matching `"\0"` from the grammar looks like it works in one code path and not another; don't.) Most grammar bugs are a line lexing as the wrong kind. `PREC` at the top of `define-grammar.js` is the ladder that decides it; read its comments before touching a number. The guide's lex step lists, for the token under the caret, every token that was valid there and which won. The request, response and body rules are `prec.right` so a trailing comment, blank line or brace-led line attaches to them.
 
-A placeholder is the one thing the grammar cannot decide from the token in front of it: whether a `{{` opens one depends on a `}}` further along the line. A placeholder never contains a brace, so the scanner's other token, `_placeholder_open`, looks along the line as far as the first brace and is the `{{` only when that brace is the `}}`. A `{{` it declines is the grammar's own `{{` token, text like any other brace, so an unclosed `{{`, stray closers and openers, and braces around a placeholder are all error-free, and the corpus has cases for each. The look stops at the first brace, which is what keeps a line of braces linear.
+A placeholder is the one thing the grammar cannot decide from the token in front of it: whether a `{{` opens one depends on a `}}` further along the line. A placeholder never contains a brace, so the scanner's `placeholder` token looks along the line as far as the first brace and is the whole `{{…}}` only when that brace is the `}}`. A `{{` it declines is the grammar's own `{{` token, text like any other brace, so an unclosed `{{`, stray closers and openers, and braces around a placeholder are all error-free, and the corpus has cases for each. The look stops at the first brace, which is what keeps a line of braces linear. What the token holds — a reference and its path, or a call of a builtin with its arguments — is the `expression` grammar's, reached by injection with the braces included, where whitespace is trivia and the syntax can grow without touching the line grammar. The file sees a placeholder; the placeholder holds an expression.
 
 Node names are the contract with every consumer's queries. `src/node-types.json` is the vocabulary, and its fields (`method:`, `target:`, `version:`, `name:`, `value:`, `argument:`, `status:`, `reason:`, `body:`, `path:`, `title:`) are what queries should bind; underscore rules never appear in a tree. After a grammar change, recompile each consumer's queries against the grammar: a removed node type fails there and nowhere else. Real `.http` files are the second corpus, and where a precedence change shows up:
 
@@ -78,7 +79,7 @@ One product, `TreeSitterHttp`: the two dialects, their queries, and the grammars
 
 ```swift
 public struct Grammar: @unchecked Sendable {
-    public let name: String            // http, http_message, json, xml, html, form_urlencoded
+    public let name: String            // http, http_message, json, xml, html, form_urlencoded, expression
     public let language: OpaquePointer // the TSLanguage
     public let highlights: String
     public let injections: String?
@@ -91,6 +92,7 @@ public enum TreeSitterHttp {
     public static let xml: Grammar
     public static let html: Grammar
     public static let formUrlencoded: Grammar
+    public static let expression: Grammar
     public static let all: [Grammar]
     public static func grammar(named name: String) -> Grammar?
 }

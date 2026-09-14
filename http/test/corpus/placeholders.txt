@@ -17,9 +17,7 @@ Declarations
   (declaration
     (identifier)
     (value
-      (placeholder
-        (reference
-          (identifier)))
+      (placeholder)
       (value_text))))
 
 ==================
@@ -37,40 +35,25 @@ X-Random: {{$randomInt 1 100}}
   (request
     (method)
     (target
-      (placeholder
-        (reference
-          (identifier)))
+      (placeholder)
       (url_text)
-      (placeholder
-        (reference
-          (identifier))))
+      (placeholder))
     (continuation
       (url_text)
-      (placeholder
-        (reference
-          (identifier)
-          (path_expression))))
+      (placeholder))
     (header
       (header_name)
       (value
         (value_text)
-        (placeholder
-          (reference
-            (identifier)))))
+        (placeholder)))
     (header
       (header_name)
       (value
-        (placeholder
-          (dynamic
-            (dynamic_name)))))
+        (placeholder)))
     (header
       (header_name)
       (value
-        (placeholder
-          (dynamic
-            (dynamic_name)
-            (argument)
-            (argument)))))))
+        (placeholder)))))
 
 ==================
 Directives
@@ -101,9 +84,7 @@ POST {{host}}/login
   (request
     (method)
     (target
-      (placeholder
-        (reference
-          (identifier)))
+      (placeholder)
       (url_text))))
 
 ==================
@@ -121,9 +102,7 @@ X-Braces: one { two }} three
       (url_text)
       (url_text)
       (url_text)
-      (placeholder
-        (reference
-          (identifier))))
+      (placeholder))
     (header
       (header_name)
       (value
@@ -144,15 +123,14 @@ GET {{host}}/a
 (document
   (declaration
     name: (identifier)
-    value: (value (value_text)))
+    value: (value
+      (value_text)))
   (declaration
     name: (identifier))
   (request
     method: (method)
     target: (target
-      (placeholder
-        (reference
-          name: (identifier)))
+      (placeholder)
       (url_text))))
 
 ==================
@@ -166,7 +144,8 @@ A directive argument may follow = with no space
 (document
   (directive
     name: (identifier)
-    argument: (value (value_text))))
+    argument: (value
+      (value_text))))
 
 ==================
 An unclosed {{ in a header value is text
@@ -220,9 +199,7 @@ X-A: {{{{a}}}}
     (header
       (header_name)
       (value
-        (placeholder
-          (reference
-            (identifier)))))))
+        (placeholder)))))
 
 ==================
 A placeholder inside braces, and the header after it survives
@@ -241,9 +218,7 @@ X-Plain: plain text
     (header
       (header_name)
       (value
-        (placeholder
-          (reference
-            (identifier)))))
+        (placeholder)))
     (header
       (header_name)
       (value
@@ -262,9 +237,7 @@ GET https://x/{{unclosed/{{b}}
     (target
       (url_text)
       (url_text)
-      (placeholder
-        (reference
-          (identifier))))))
+      (placeholder))))
 
 ==================
 An unclosed {{ at the end of a target line is text
@@ -330,7 +303,7 @@ A @ that declares nothing is an error
 ---
 
 ==================
-A dynamic may end in a space before its closer
+A call may end in a space before its closer
 ==================
 GET https://example.com/a
 X-Id: {{$guid }}
@@ -346,14 +319,8 @@ X-Args: {{$randomInt 1 2 }}
     (header
       (header_name)
       (value
-        (placeholder
-          (dynamic
-            (dynamic_name)))))
+        (placeholder)))
     (header
       (header_name)
       (value
-        (placeholder
-          (dynamic
-            (dynamic_name)
-            (argument)
-            (argument)))))))
+        (placeholder)))))

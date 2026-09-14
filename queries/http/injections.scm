@@ -34,3 +34,9 @@
  (#match? @_content_type "^[Cc][Oo][Nn][Tt][Ee][Nn][Tt]-[Tt][Yy][Pp][Ee]$")
  (#match? @_media_type "^[Mm][Ee][Ss][Ss][Aa][Gg][Ee]/[Hh][Tt][Tt][Pp][ \t]*(;|$)")
  (#set! injection.language "http_message"))
+
+; Every placeholder, braces included, to the expression grammar. A
+; placeholder inside a body is masked for the body's language and painted
+; by this one.
+((placeholder) @injection.content
+ (#set! injection.language "expression"))

@@ -8,18 +8,13 @@
 // `  \n`, and a `_ws` written there was lexed as a `_blank` the rule could
 // not take.
 //
-// `_placeholder_open`: a `{{` that opens a placeholder. A placeholder never
-// contains a brace, so a `{{` opens one exactly when `}}` follows on the
-// same line with no brace between, and that is decided by looking along the
-// line as far as the first brace — a grammar rule cannot look past the
-// token it is deciding; a scanner can. A `{{` that opens nothing is left to
-// the grammar's own `{{` token, which is text.
-//
-// `_closing_ws`: the spaces and tabs a `}}` follows, inside a placeholder —
-// the closer owns them, as `_eol` owns the spaces before a line's end, so no
-// rule has to say whether a space after a dynamic's argument is the
-// separator before another or the one before the closer. A grammar rule
-// cannot tell those apart without reading past the space; the scanner can.
+// `placeholder`: a whole `{{…}}`, one token. A placeholder never contains a
+// brace, so a `{{` opens one exactly when `}}` follows on the same line with
+// no brace between, and that is decided by looking along the line as far as
+// the first brace — a grammar rule cannot look past the token it is
+// deciding; a scanner can. A `{{` that opens nothing is left to the
+// grammar's own `{{` token, which is text. What the token holds is the
+// expression grammar's, by injection.
 //
 // `_form_start`: zero-width at a body's first line when it opens `key=` — a
 // first character that is not whitespace, `=`, `&`, a brace, `<` or `[`,
@@ -42,7 +37,7 @@
 
 #include "tree_sitter/parser.h"
 
-enum TokenType { EOL, PLACEHOLDER_OPEN, CLOSING_WS, FORM_START, FILE_OPEN };
+enum TokenType { EOL, PLACEHOLDER, FORM_START, FILE_OPEN };
 
 void *SCANNER(create)(void) { return NULL; }
 void SCANNER(destroy)(void *payload) {}
@@ -51,33 +46,26 @@ void SCANNER(deserialize)(void *payload, const char *buffer, unsigned length) {}
 
 #if HAS_PLACEHOLDERS
 // At a `{`: true when `{{` here is closed by `}}` on this line with no brace
-// between. The token is the `{{`; what follows is looked at and left, and
-// the look stops at the first brace, so a line of braces costs its length
-// once. On false the runtime rewinds to where the look began.
-static bool scan_placeholder_open(TSLexer *lexer) {
+// between, and the token is the whole `{{…}}`. The look stops at the first
+// brace, so a line of braces costs its length once. On false the runtime
+// rewinds to where the look began.
+static bool scan_placeholder(TSLexer *lexer) {
   if (lexer->lookahead != '{') return false;
   lexer->advance(lexer, false);
   if (lexer->lookahead != '{') return false;
   lexer->advance(lexer, false);
-  lexer->mark_end(lexer);
   while (!lexer->eof(lexer)) {
     int32_t c = lexer->lookahead;
     if (c == '\n' || c == '\r' || c == '{') return false;
     lexer->advance(lexer, false);
-    if (c == '}') return lexer->lookahead == '}';
+    if (c == '}') {
+      if (lexer->lookahead != '}') return false;
+      lexer->advance(lexer, false);
+      lexer->mark_end(lexer);
+      return true;
+    }
   }
   return false;
-}
-
-// At a space or tab: true when the run of them ends at `}}`. The end is
-// marked after the run, so the token is the whitespace and the `}}` is the
-// grammar's.
-static bool scan_closing_ws(TSLexer *lexer) {
-  while (lexer->lookahead == ' ' || lexer->lookahead == '\t') lexer->advance(lexer, false);
-  lexer->mark_end(lexer);
-  if (lexer->lookahead != '}') return false;
-  lexer->advance(lexer, false);
-  return lexer->lookahead == '}';
 }
 
 static bool is_space(int32_t c) {
@@ -127,18 +115,8 @@ bool SCANNER(scan)(void *payload, TSLexer *lexer, const bool *valid_symbols) {
   // declined look has moved the lexer along the line, and the line-end
   // check below must not read from there.
   if (lexer->lookahead == '{') {
-    if (valid_symbols[PLACEHOLDER_OPEN] && scan_placeholder_open(lexer)) {
-      lexer->result_symbol = PLACEHOLDER_OPEN;
-      return true;
-    }
-    return false;
-  }
-  // Whitespace inside a placeholder is the closer's when a `}}` follows it,
-  // and otherwise the grammar's `_ws`; a declined look has moved along the
-  // spaces, where no line end can start either.
-  if (valid_symbols[CLOSING_WS] && (lexer->lookahead == ' ' || lexer->lookahead == '\t')) {
-    if (scan_closing_ws(lexer)) {
-      lexer->result_symbol = CLOSING_WS;
+    if (valid_symbols[PLACEHOLDER] && scan_placeholder(lexer)) {
+      lexer->result_symbol = PLACEHOLDER;
       return true;
     }
     return false;

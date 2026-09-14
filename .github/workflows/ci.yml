@@ -52,8 +52,8 @@ jobs:
       - run: npm run generate
       - name: src/ is what generate writes
         run: |
-          if [ -n "$(git status --porcelain -- http/src http_message/src form_urlencoded/src)" ]; then
-            git status --short -- http/src http_message/src form_urlencoded/src
+          if [ -n "$(git status --porcelain -- http/src http_message/src form_urlencoded/src expression/src)" ]; then
+            git status --short -- http/src http_message/src form_urlencoded/src expression/src
             echo "::error::src/ is stale - run npm run generate and commit"
             exit 1
           fi

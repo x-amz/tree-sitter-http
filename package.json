@@ -16,6 +16,8 @@
     "http_message/src",
     "form_urlencoded/grammar.js",
     "form_urlencoded/src",
+    "expression/grammar.js",
+    "expression/src",
     "queries",
     "tree-sitter.json"
   ],
@@ -24,8 +26,8 @@
     "web"
   ],
   "scripts": {
-    "generate": "cd http && tree-sitter generate --abi 14 && cd ../http_message && tree-sitter generate --abi 14 && cd ../form_urlencoded && tree-sitter generate --abi 14",
-    "test": "cd http && tree-sitter test && cd ../http_message && tree-sitter test && cd ../form_urlencoded && tree-sitter test",
+    "generate": "cd http && tree-sitter generate --abi 14 && cd ../http_message && tree-sitter generate --abi 14 && cd ../form_urlencoded && tree-sitter generate --abi 14 && cd ../expression && tree-sitter generate --abi 14",
+    "test": "cd http && tree-sitter test && cd ../http_message && tree-sitter test && cd ../form_urlencoded && tree-sitter test && cd ../expression && tree-sitter test",
     "build": "npm run build --workspaces",
     "check": "npm run check --workspaces --if-present"
   },

@@ -1,4 +1,6 @@
-// The two dialects, their queries, and the grammars the queries inject.
+// The two dialects, their queries, and the grammars the queries inject: the
+// body languages, and the expression language the file dialect hands every
+// placeholder to.
 //
 // A `Grammar` is what a highlighter needs to run one language: the
 // `TSLanguage` and its query text. The dialects' queries are this package's
@@ -61,7 +63,13 @@ public enum TreeSitterHttp {
         name: "form_urlencoded", language: tree_sitter_form_urlencoded(),
         queries: .module, directory: "queries/form_urlencoded")
 
-    public static let all: [Grammar] = [file, message, json, xml, html, formUrlencoded]
+    /// This repository's own expression language: what a `placeholder` token
+    /// of the file dialect holds, braces included.
+    public static let expression = Grammar(
+        name: "expression", language: tree_sitter_expression(),
+        queries: .module, directory: "queries/expression")
+
+    public static let all: [Grammar] = [file, message, json, xml, html, formUrlencoded, expression]
 
     /// The grammar an `injection.language` value names. Both dialects'
     /// injection queries name grammars outright — on the wire, the media-type
@@ -74,6 +82,7 @@ public enum TreeSitterHttp {
         case "xml": return xml
         case "html": return html
         case "form_urlencoded": return formUrlencoded
+        case "expression": return expression
         default: return nil
         }
     }

@@ -1,0 +1,72 @@
+==================
+A reference
+==================
+{{host}}
+
+---
+
+(expression
+  (reference
+    (identifier)))
+
+==================
+A reference with a path, and spaces inside the braces
+==================
+{{ login.response.body.$.token }}
+
+---
+
+(expression
+  (reference
+    (identifier)
+    (path)))
+
+==================
+A call with no arguments
+==================
+{{$guid}}
+
+---
+
+(expression
+  (call
+    (builtin)))
+
+==================
+A call with arguments, and a space before the closer
+==================
+{{$randomInt 1 100 }}
+
+---
+
+(expression
+  (call
+    (builtin)
+    (argument)
+    (argument)))
+
+==================
+Empty braces
+==================
+{{}}
+
+---
+
+(expression)
+
+==================
+Spaces alone inside the braces
+==================
+{{   }}
+
+---
+
+(expression)
+
+==================
+A brace inside is an error
+:error
+==================
+{{a}b}}
+
+---

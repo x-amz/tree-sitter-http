@@ -16,14 +16,9 @@
 (header value: (value) @string)
 (fold value: (value) @string)
 
-; {{placeholders}}
-(placeholder
-  "{{" @punctuation.special
-  "}}" @punctuation.special)
-(reference name: (identifier) @variable)
-(reference path: (path_expression) @property)
-(dynamic name: (dynamic_name) @variable.builtin)
-(dynamic (argument) @variable.parameter)
+; {{placeholders}} — one token here, a range another grammar paints:
+; injections.scm hands each to the expression grammar.
+(placeholder) @embedded
 
 ; @name = value
 (declaration

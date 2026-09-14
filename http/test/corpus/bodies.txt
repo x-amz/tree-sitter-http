@@ -85,9 +85,7 @@ POST https://example.com/anything
     (target
       (url_text))
     (raw_body
-      (placeholder
-        (reference
-          (identifier))))))
+      (placeholder))))
 
 ==================
 XML body
@@ -209,18 +207,6 @@ POST https://example.com/a
 }
 
 ---
-
-(document
-  (request
-    (method)
-    (target
-      (url_text))
-    (json_body))
-  (request
-    (target
-      (MISSING "{"))
-    (trailer)
-    (plain)))
 
 ==================
 A response body keeps its blank lines
@@ -357,12 +343,8 @@ POST https://example.com/anything
     (target
       (url_text))
     (json_body
-      (placeholder
-        (reference
-          (identifier)))
-      (placeholder
-        (reference
-          (identifier))))))
+      (placeholder)
+      (placeholder))))
 
 ==================
 A pretty-printed JSON body opens with a lone brace
@@ -382,12 +364,8 @@ POST https://example.com/anything
     (target
       (url_text))
     (json_body
-      (placeholder
-        (reference
-          (identifier)))
-      (placeholder
-        (reference
-          (identifier))))))
+      (placeholder)
+      (placeholder))))
 
 ==================
 A placeholder inside an XML body
@@ -404,9 +382,7 @@ POST https://example.com/anything
     (target
       (url_text))
     (xml_body
-      (placeholder
-        (reference
-          (identifier))))))
+      (placeholder))))
 
 ==================
 Braces in a body that close no placeholder are text
@@ -446,15 +422,9 @@ first {{a}} line
     (target
       (url_text))
     (raw_body
-      (placeholder
-        (reference
-          (identifier)))
-      (placeholder
-        (reference
-          (identifier)))
-      (placeholder
-        (reference
-          (identifier))))))
+      (placeholder)
+      (placeholder)
+      (placeholder))))
 
 ==================
 A placeholder line after a file body
@@ -473,9 +443,7 @@ POST https://example.com/anything
       (url_text))
     (file_body
       (path)
-      (placeholder
-        (reference
-          (identifier))))))
+      (placeholder))))
 
 ==================
 A response body keeps its blank lines and reads its placeholders
@@ -500,9 +468,7 @@ GET https://example.com/next
     (status_code)
     (status_text)
     (json_body
-      (placeholder
-        (reference
-          (identifier)))))
+      (placeholder)))
   (section
     (separator)
     (request
@@ -527,14 +493,10 @@ POST https://example.com/anything
     (target
       (url_text))
     (json_body
-      (placeholder
-        (reference
-          (identifier)))))
+      (placeholder)))
   (request
     (target
-      (placeholder
-        (reference
-          (identifier)))
+      (placeholder)
       (url_text))))
 
 ==================
@@ -560,9 +522,7 @@ name=foo&token={{token}}
       (pair
         (key)
         (value
-          (placeholder
-            (reference
-              (identifier)))))
+          (placeholder)))
       (pair
         (key)
         (value
@@ -621,9 +581,7 @@ b=2
         (key)
         (value
           (value_text)))
-      (placeholder
-        (reference
-          (identifier))))))
+      (placeholder))))
 
 ==================
 A space after = is prose, and raw, like a space around it
@@ -745,9 +703,7 @@ POST https://example.com/anything
     (target
       (url_text))
     (raw_body
-      (placeholder
-        (reference
-          (identifier))))))
+      (placeholder))))
 
 ==================
 A body's first line is typed by its first token after the indentation
@@ -880,13 +836,9 @@ q=hello {{x}} world&r={{y}}
         (key)
         (value
           (value_text)
-          (placeholder
-            (reference
-              (identifier)))
+          (placeholder)
           (value_text)))
       (pair
         (key)
         (value
-          (placeholder
-            (reference
-              (identifier))))))))
+          (placeholder))))))

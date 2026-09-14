@@ -90,9 +90,7 @@ localhost:8080
       (url_text)))
   (request
     (target
-      (placeholder
-        (reference
-          (identifier))))))
+      (placeholder))))
 
 ==================
 Text after the target that is not a version is an error
@@ -277,9 +275,7 @@ User-Agent: foo
       (header_name)
       (fold
         (value
-          (placeholder
-            (reference
-              (identifier))))))
+          (placeholder))))
     (header
       (header_name)
       (value

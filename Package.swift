@@ -39,6 +39,8 @@ let package = Package(
                 "http_message/src/grammar.json", "http_message/src/node-types.json",
                 "form_urlencoded/grammar.js", "form_urlencoded/test",
                 "form_urlencoded/src/grammar.json", "form_urlencoded/src/node-types.json",
+                "expression/grammar.js", "expression/test",
+                "expression/src/grammar.json", "expression/src/node-types.json",
             ],
             sources: [
                 "http/src/parser.c",
@@ -46,12 +48,14 @@ let package = Package(
                 "http_message/src/parser.c",
                 "http_message/src/scanner.c",
                 "form_urlencoded/src/parser.c",
+                "expression/src/parser.c",
             ],
             publicHeadersPath: "bindings/swift/CTreeSitterHttp",
             cSettings: [
                 .headerSearchPath("http/src"),
                 .headerSearchPath("http_message/src"),
                 .headerSearchPath("form_urlencoded/src"),
+                .headerSearchPath("expression/src"),
             ]
         ),
         .target(
@@ -63,7 +67,7 @@ let package = Package(
                 .product(name: "TreeSitterHTML", package: "tree-sitter-html"),
             ],
             path: ".",
-            exclude: unrelated + ["http", "http_message", "form_urlencoded", "bindings/swift/CTreeSitterHttp"],
+            exclude: unrelated + ["http", "http_message", "form_urlencoded", "expression", "bindings/swift/CTreeSitterHttp"],
             sources: ["bindings/swift/TreeSitterHttp"],
             resources: [.copy("queries")]
         ),

@@ -4,10 +4,10 @@
 // data, and index.js reads it.
 //
 // The injection queries name grammars outright (`json`, `xml`, `html`,
-// `form_urlencoded`, `http_message`), so `grammar(name)` is the whole lookup for an
-// `injection.language` value. A new body language is one entry here and one
-// pattern in the wire query; release.js fails until this list and the built
-// assets agree.
+// `form_urlencoded`, `http_message`, `expression`), so `grammar(name)` is the
+// whole lookup for an `injection.language` value. A new body language is one
+// entry here and one pattern in the wire query; release.js fails until this
+// list and the built assets agree.
 
 const here = (name) => new URL(`./dist/${name}`, import.meta.url);
 
@@ -28,8 +28,10 @@ export const xml = describe("xml", false);
 export const html = describe("html", false);
 /** This repository's own body language, form-encoded pairs. */
 export const formUrlencoded = describe("form_urlencoded", false);
+/** This repository's own expression language, what a placeholder holds. */
+export const expression = describe("expression", false);
 
-export const all = Object.freeze([file, message, json, xml, html, formUrlencoded]);
+export const all = Object.freeze([file, message, json, xml, html, formUrlencoded, expression]);
 
 /** The grammar an `injection.language` value names, or undefined. */
 export function grammar(name) {

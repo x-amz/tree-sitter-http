@@ -31,11 +31,20 @@
       "path": "form_urlencoded",
       "injection-regex": "^(form_urlencoded|application/x-www-form-urlencoded)$",
       "highlights": "queries/form_urlencoded/highlights.scm"
+    },
+    {
+      "name": "expression",
+      "camelcase": "Expression",
+      "title": "Expression",
+      "scope": "source.http-expression",
+      "path": "expression",
+      "injection-regex": "^expression$",
+      "highlights": "queries/expression/highlights.scm"
     }
   ],
   "metadata": {
     "version": "0.0.0",
-    "description": "tree-sitter grammars for .http files and message/http wire messages, and for the form-encoded bodies they carry",
+    "description": "tree-sitter grammars for .http files and message/http wire messages, for the expressions their placeholders hold, and for form-encoded bodies",
     "authors": [{ "name": "X-AMZ LLC", "email": "support@x-amz.dev" }]
   },
   "bindings": { "c": false, "go": false, "node": false, "python": false, "rust": false, "swift": true }

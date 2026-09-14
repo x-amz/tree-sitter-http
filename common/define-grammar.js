@@ -79,17 +79,16 @@
 //     a method, around a `:` or an `=`, inside a placeholder's braces,
 //     between the pieces of a value, and a line's indentation. It is hidden,
 //     so a consumer sees a gap between siblings and never a node.
-//   - A closer owns the whitespace before it, so no rule ever has to say
-//     whose a space is. `_eol` ends a line: a newline, or zero-width at end
-//     of file, with the spaces before it, from the scanner. `}}` closes a
-//     placeholder, and the spaces before it are the scanner's `_closing_ws`.
-//     No rule writes a `_ws` in front of either.
+//   - `_eol` ends a line and owns the whitespace before it: a newline, or
+//     zero-width at end of file, with the spaces before it, from the
+//     scanner. No rule writes a `_ws` in front of an `_eol`.
 //   - `_blank` is a whitespace-only line.
 //   - A visible token never begins or ends with whitespace — `text()` below
-//     is the shape of every one that runs along a line. A value is pieces,
-//     text and placeholders, with `_ws` between them, and the `value` node
-//     runs from its first piece to its last. A consumer takes a node's text
-//     and trims nothing.
+//     is the shape of every one that runs along a line, and a placeholder
+//     token runs from its `{{` to its `}}`. A value is pieces, text and
+//     placeholders, with `_ws` between them, and the `value` node runs from
+//     its first piece to its last. A consumer takes a node's text and trims
+//     nothing.
 //   - A line node — a header, a comment, a fold — spans its `_eol`. An
 //     indented line begins at its first character; the indentation is the
 //     parent's. A body is the exception the other way: its bytes are the
@@ -97,11 +96,12 @@
 //     does, and inside it the same tokens apply.
 //
 // The scanner (common/scanner.h) supplies `_eol`, and for the file dialect
-// `_placeholder_open` — the `{{` that opens a placeholder, decided by looking
-// along the line for its `}}` — `_closing_ws`, the spaces a `}}` follows,
-// and the two body openers a token cannot state without looking past
+// `placeholder` — a whole `{{…}}`, decided by looking along the line for the
+// `}}` — and the two body openers a token cannot state without looking past
 // itself: `_form_start`, zero-width at a `key=`, and `_file_open`, the `<`
-// or `<@name` that whitespace and a path follow.
+// or `<@name` that whitespace and a path follow. What a placeholder holds
+// is the expression grammar's (../expression), reached by injection; here
+// it is one token, opaque.
 //
 // What a line *is* falls out of lexical precedence, highest first: `###`
 // (10), a typed body's opener (9), a body line (8), a status line (7), a raw
@@ -163,15 +163,13 @@ module.exports = (wire) =>
     // From <dialect>/src/scanner.c (common/scanner.h). `_eol` is a newline,
     // or zero-width at end of file, with the whitespace before it. The rest
     // exist in the file dialect alone — on the wire, braces are octets and a
-    // body is opaque: `_placeholder_open` is a `{{` whose `}}` closes it on
-    // the same line with no brace between; `_closing_ws` is whitespace that
-    // a `}}` follows; `_form_start` is zero-width at a body's first line
-    // when that line opens `key=`; `_file_open` is the `<` or `<@name` a
-    // body's first line opens with when whitespace and a path follow it.
+    // body is opaque: `placeholder` is a `{{` through the `}}` that closes it
+    // on the same line with no brace between, one token, its inside the
+    // expression grammar's; `_form_start` is zero-width at a body's first
+    // line when that line opens `key=`; `_file_open` is the `<` or `<@name`
+    // a body's first line opens with when whitespace and a path follow it.
     // Each is a decision that needs to look past the token.
-    externals: wire
-      ? ($) => [$._eol]
-      : ($) => [$._eol, $._placeholder_open, $._closing_ws, $._form_start, $._file_open],
+    externals: wire ? ($) => [$._eol] : ($) => [$._eol, $.placeholder, $._form_start, $._file_open],
 
     // No conflicts: wherever a space could belong to two rules, a closer
     // owns it, and the scanner decides by looking past it.
@@ -516,28 +514,14 @@ module.exports = (wire) =>
       ...(wire
         ? {}
         : {
-            // `{{host}}`, `{{ login.response.body.$.token }}`, `{{$randomInt 1 100}}`
-            // The opener is the scanner's: a `{{` is one only when `}}` closes
-            // it on the line with no brace between. Every other brace is text
-            // — `{{` and `}}` included, as the grammar's own tokens — so an
-            // unclosed `{{`, stray closers, and braces around a placeholder
-            // are the text they are, never an error.
-            placeholder: ($) =>
-              seq(
-                alias($._placeholder_open, "{{"),
-                optional($._ws),
-                optional(choice($.dynamic, $.reference)),
-                optional($._closing_ws),
-                "}}",
-              ),
+            // A `placeholder` is the scanner's, whole: `{{host}}`,
+            // `{{ login.response.body.$.token }}`, `{{$randomInt 1 100}}`. A
+            // `{{` is one only when `}}` closes it on the line with no brace
+            // between. Every other brace is text — `{{` and `}}` included, as
+            // the grammar's own tokens — so an unclosed `{{`, stray closers,
+            // and braces around a placeholder are the text they are, never an
+            // error. What the token holds is the expression grammar's.
             _braces: () => choice("{{", "}}", "{", "}"),
-            reference: ($) => seq(field("name", $.identifier), optional(field("path", $.path_expression))),
-            path_expression: () => /[.\[][^\s{}]*/,
-            // The space after the last argument is the `}}`'s, so an argument
-            // always follows a `_ws` here.
-            dynamic: ($) => seq(field("name", $.dynamic_name), repeat(seq($._ws, $.argument))),
-            dynamic_name: () => /\$[^\s{}]*/,
-            argument: () => /[^\s{}]+/,
 
             identifier: () => /[^\s.\[\]{}$=][^\s.\[\]{}=]*/,
           }),

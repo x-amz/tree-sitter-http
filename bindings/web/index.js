@@ -97,8 +97,8 @@ export function highlight(text, dialect = "http", { cap = PAINT_CAP } = {}) {
  */
 export const CAPTURE_FAMILIES = Object.freeze([
   "attribute", "boolean", "comment", "constant", "embedded", "error", "escape",
-  "keyword", "label", "markup", "number", "operator", "property", "punctuation",
-  "string", "tag", "type", "variable",
+  "function", "keyword", "label", "markup", "number", "operator", "property",
+  "punctuation", "string", "tag", "type", "variable",
 ]);
 
 /**
@@ -121,7 +121,8 @@ export const CSS = `.keyword { color: var(--ts-keyword, #1d5fb4); font-weight: 6
 .attribute { color: var(--ts-attribute, #8a5a00); }
 .variable { color: var(--ts-variable, #b4421f); }
 .variable.builtin { color: var(--ts-variable, #b4421f); font-style: italic; }
-.variable.parameter { color: var(--ts-string, inherit); font-style: italic; }
+.function { color: var(--ts-function, #1d5fb4); }
+.function.builtin { color: var(--ts-variable, #b4421f); font-style: italic; }
 .comment { color: var(--ts-comment, #6b7280); font-style: italic; }
 .escape { color: var(--ts-escape, #b4421f); }
 .tag { color: var(--ts-tag, #1d5fb4); }

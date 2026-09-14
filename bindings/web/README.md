@@ -49,7 +49,7 @@ or load it from a CDN, straight from the registry: `https://cdn.jsdelivr.net/npm
 
 Two more entry points for a consumer that wants the parts: `tree-sitter-http-web/grammars`
 is the grammars as URLs (`file`, `message`, `json`, `xml`, `html`,
-`formUrlencoded`, `all`, `grammar(name)`), and `tree-sitter-http-web/painter`
+`formUrlencoded`, `expression`, `all`, `grammar(name)`), and `tree-sitter-http-web/painter`
 is the engine (`bundle`, `analyze`, `injectionNames`, `injection`), which
 returns per-character capture classes, parse verdicts and the injection tree
 rather than HTML. A body is handed to its language with the placeholders the
