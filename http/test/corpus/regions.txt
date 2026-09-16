@@ -1,5 +1,5 @@
 ==================
-Titled and untitled sections with a preamble
+Titled and untitled regions with a preamble
 ==================
 @host = https://example.com
 # preamble comment
@@ -24,7 +24,7 @@ GET {{host}}/done
     (value
       (value_text)))
   (comment)
-  (section
+  (region
     (separator
       (title))
     (directive
@@ -37,14 +37,14 @@ GET {{host}}/done
         (placeholder)
         (url_text))
       (json_body)))
-  (section
+  (region
     (separator)
     (request
       (method)
       (target
         (placeholder)
         (url_text))))
-  (section
+  (region
     (separator
       (title))
     (request
@@ -78,7 +78,7 @@ X: y
   (response
     (version)
     (status_code)
-    (status_text)
+    (reason_phrase)
     (header
       (header_name)
       (value
@@ -91,14 +91,14 @@ Two hashes is a comment, three is a separator
 
 ## a two-hash comment
 ##nospace
-### A section
+### A region
 
 ---
 
 (document
   (comment)
   (comment)
-  (section
+  (region
     (separator
       title: (title))))
 
@@ -132,7 +132,7 @@ a=1
     (value
       (value_text)))
   (comment)
-  (section
+  (region
     (separator
       (title))
     (directive
@@ -155,7 +155,7 @@ a=1
       (plain)
       (file_body
         (path))))
-  (section
+  (region
     (separator)
     (request
       (method)
@@ -167,7 +167,7 @@ a=1
     (response
       (version)
       (status_code)
-      (status_text)
+      (reason_phrase)
       (form_body
         (pair
           (key)

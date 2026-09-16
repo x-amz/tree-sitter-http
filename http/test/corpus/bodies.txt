@@ -160,7 +160,7 @@ GET https://example.com/b
     (target
       (url_text))
     (raw_body))
-  (section
+  (region
     (separator)
     (request
       (method)
@@ -240,7 +240,7 @@ Content-Type: application/json
   (response
     (version)
     (status_code)
-    (status_text)
+    (reason_phrase)
     (header
       (header_name)
       (value
@@ -307,7 +307,7 @@ HTTP/1.1 200 OK
   (response
     (version)
     (status_code)
-    (status_text)
+    (reason_phrase)
     (json_body)))
 
 ==================
@@ -326,7 +326,7 @@ HTTP/1.1 is a protocol
       (url_text)))
   (response
     (version)
-    (status_text)))
+    (reason_phrase)))
 
 ==================
 Placeholders inside a JSON body, in string and in value position
@@ -466,10 +466,10 @@ GET https://example.com/next
   (response
     (version)
     (status_code)
-    (status_text)
+    (reason_phrase)
     (json_body
       (placeholder)))
-  (section
+  (region
     (separator)
     (request
       (method)
@@ -668,7 +668,7 @@ flag=1
   (response
     (version)
     (status_code)
-    (status_text)
+    (reason_phrase)
     (form_body
       (pair
         (key))
@@ -676,7 +676,7 @@ flag=1
         (key)
         (value
           (value_text)))))
-  (section
+  (region
     (separator)
     (request
       (method)
@@ -732,14 +732,14 @@ POST https://example.com/d
     (target
       (url_text))
     (json_body))
-  (section
+  (region
     (separator)
     (request
       (method)
       (target
         (url_text))
       (xml_body)))
-  (section
+  (region
     (separator)
     (request
       (method)
@@ -750,7 +750,7 @@ POST https://example.com/d
           (key)
           (value
             (value_text))))))
-  (section
+  (region
     (separator)
     (request
       (method)
@@ -782,14 +782,14 @@ POST https://example.com/c
     (target
       (url_text))
     (raw_body))
-  (section
+  (region
     (separator)
     (request
       (method)
       (target
         (url_text))
       (raw_body)))
-  (section
+  (region
     (separator)
     (request
       (method)

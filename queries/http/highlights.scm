@@ -53,7 +53,7 @@
 ((status_code) @constant.status.server
   (#match? @constant.status.server "^5"))
 (status_code) @constant
-(status_text) @string
+(reason_phrase) @string
 
 ; Bodies
 (file_body path: (path) @string.special)
@@ -62,5 +62,5 @@
 (pair "=" @punctuation.delimiter)
 (form_body "&" @punctuation.delimiter)
 
-; Regions the parser could not make sense of
+; Text the parser could not make sense of
 (ERROR) @error

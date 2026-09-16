@@ -48,13 +48,13 @@ PROPFIND https://example.com/d
     (method)
     (target
       (url_text)))
-  (section
+  (region
     (separator)
     (request
       (method)
       (target
         (url_text))))
-  (section
+  (region
     (separator)
     (request
       (method)

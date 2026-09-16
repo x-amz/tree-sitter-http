@@ -16,12 +16,12 @@
           "type": "REPEAT",
           "content": {
             "type": "SYMBOL",
-            "name": "section"
+            "name": "region"
           }
         }
       ]
     },
-    "section": {
+    "region": {
       "type": "SEQ",
       "members": [
         {
@@ -958,7 +958,7 @@
                   "name": "reason",
                   "content": {
                     "type": "SYMBOL",
-                    "name": "status_text"
+                    "name": "reason_phrase"
                   }
                 }
               ]
@@ -981,7 +981,7 @@
         }
       }
     },
-    "status_text": {
+    "reason_phrase": {
       "type": "PATTERN",
       "value": "[^\\s]([^\\r\\n]*[^\\s])?"
     },

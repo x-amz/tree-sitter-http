@@ -107,15 +107,15 @@
           "named": true
         },
         {
+          "type": "region",
+          "named": true
+        },
+        {
           "type": "request",
           "named": true
         },
         {
           "type": "response",
-          "named": true
-        },
-        {
-          "type": "section",
           "named": true
         }
       ]
@@ -285,6 +285,46 @@
     }
   },
   {
+    "type": "reason_phrase",
+    "named": true,
+    "fields": {}
+  },
+  {
+    "type": "region",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "comment",
+          "named": true
+        },
+        {
+          "type": "declaration",
+          "named": true
+        },
+        {
+          "type": "directive",
+          "named": true
+        },
+        {
+          "type": "request",
+          "named": true
+        },
+        {
+          "type": "response",
+          "named": true
+        },
+        {
+          "type": "separator",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
     "type": "request",
     "named": true,
     "fields": {
@@ -403,7 +443,7 @@
         "required": false,
         "types": [
           {
-            "type": "status_text",
+            "type": "reason_phrase",
             "named": true
           }
         ]
@@ -449,41 +489,6 @@
     }
   },
   {
-    "type": "section",
-    "named": true,
-    "fields": {},
-    "children": {
-      "multiple": true,
-      "required": true,
-      "types": [
-        {
-          "type": "comment",
-          "named": true
-        },
-        {
-          "type": "declaration",
-          "named": true
-        },
-        {
-          "type": "directive",
-          "named": true
-        },
-        {
-          "type": "request",
-          "named": true
-        },
-        {
-          "type": "response",
-          "named": true
-        },
-        {
-          "type": "separator",
-          "named": true
-        }
-      ]
-    }
-  },
-  {
     "type": "separator",
     "named": true,
     "fields": {
@@ -498,11 +503,6 @@
         ]
       }
     }
-  },
-  {
-    "type": "status_text",
-    "named": true,
-    "fields": {}
   },
   {
     "type": "target",

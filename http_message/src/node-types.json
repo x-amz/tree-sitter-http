@@ -82,6 +82,11 @@
     "fields": {}
   },
   {
+    "type": "reason_phrase",
+    "named": true,
+    "fields": {}
+  },
+  {
     "type": "request",
     "named": true,
     "fields": {
@@ -160,7 +165,7 @@
         "required": false,
         "types": [
           {
-            "type": "status_text",
+            "type": "reason_phrase",
             "named": true
           }
         ]
@@ -200,11 +205,6 @@
         }
       ]
     }
-  },
-  {
-    "type": "status_text",
-    "named": true,
-    "fields": {}
   },
   {
     "type": "target",

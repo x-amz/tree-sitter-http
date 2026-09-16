@@ -323,7 +323,7 @@ function counts(grammar, rules, nodeTypes) {
  *
  *   - a string leaf is an anonymous token, named by its own text (`:`, `{{`);
  *   - identical token subtrees are one symbol, named after the first rule in
- *     declaration order that holds it, so the token `title`, `status_text`
+ *     declaration order that holds it, so the token `title`, `reason_phrase`
  *     and `path` share is named for `title`;
  *   - that name is the rule name when the token is the rule's whole
  *     right-hand side and no other rule holds it, and `<rule>_token<n>`

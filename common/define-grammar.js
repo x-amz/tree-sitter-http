@@ -60,7 +60,7 @@
 //   - Placeholders: `target` and `value` are plain text; `{` and `}` are
 //     ordinary octets.
 //   - File-format items: no `comment`, `directive`, `declaration`,
-//     `separator`/`section`. The item set is request, response, blank.
+//     `separator`/`region`. The item set is request, response, blank.
 //   - Implied GET: the request line requires a method.
 //   - Target continuations: an indented line after the request line is an
 //     error. A header still folds.
@@ -180,13 +180,16 @@ module.exports = (wire) =>
     rules: {
       document: wire
         ? ($) => repeat($._item)
-        : ($) => seq(repeat($._item), repeat($.section)),
+        : ($) => seq(repeat($._item), repeat($.region)),
 
       ...(wire
         ? {}
         : {
-            // A `###` line and everything up to the next one.
-            section: ($) => seq($.separator, repeat($._item)),
+            // A region: a `###` separator and everything up to the next one.
+            // The word is the format's own — a region with a request line is
+            // one a client runs, one without is the global region whose
+            // declarations and directives stand over the file.
+            region: ($) => seq($.separator, repeat($._item)),
           }),
 
       _item: wire
@@ -385,10 +388,10 @@ module.exports = (wire) =>
         seq(
           $._ws,
           optional(field("status", $.status_code)),
-          optional(seq(optional($._ws), field("reason", $.status_text))),
+          optional(seq(optional($._ws), field("reason", $.reason_phrase))),
         ),
       status_code: () => token(prec(PREC.TRIVIA, /[0-9]+/)),
-      status_text: () => text(""),
+      reason_phrase: () => text(""),
 
       // MARK: Bodies — lines of text and placeholders
       //

@@ -29,7 +29,7 @@
 ((status_code) @constant.status.server
   (#match? @constant.status.server "^5"))
 (status_code) @constant
-(status_text) @string
+(reason_phrase) @string
 
-; Regions the parser could not make sense of
+; Text the parser could not make sense of
 (ERROR) @error
