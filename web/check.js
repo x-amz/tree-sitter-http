@@ -83,50 +83,94 @@ for (const [name, b] of bundles) {
 //
 // The rule the two queries encode. In the file format a body's language is
 // what its own text reveals — the grammar's typed opener — and a
-// Content-Type header does not overrule it; only a wire message, which no
-// opener reveals, is routed by the header. On the wire it is the other way
-// round: declared only, never sniffed. A node keeps the earliest pattern, so
-// the order of each injections.scm is the routing, and these cases pin it.
-// Each is the languages one paint asked for, in document order.
+// Content-Type header does not overrule it; a raw body is what no opener
+// typed, and the grammar itself decides what it is: handed to `http`
+// tentatively and kept only when it parses clean, so a `.http` document
+// inside a request — a declaration, a comment, a request line with or
+// without its version — is read by the grammar that reads the file, and a
+// body that is not one is left as it is. The header says two things before
+// that: `message/http` names the wire grammar, and a media type the wire
+// query knows claims the body and names nothing. On the wire the text
+// speaks first too — `{`, `key=`, a doctype — then the header, then the `<`
+// only the header could have made html, and last the wire grammar itself,
+// tentatively. A node keeps the earliest pattern, so the order of each
+// injections.scm is the routing, and these cases pin it. Each is the
+// languages one paint kept, in document order, then the languages it tried
+// and declined.
 const routing = [
   ["http", "POST /x\n\n{\"a\": 1}\n", ["json"]],
   ["http", "POST /x\n\n[1, 2]\n", ["json"]],
   ["http", "POST /x\nContent-Type: application/json\n\n{\"a\": 1}\n", ["json"]],
   ["http", "POST /x\nContent-Type: application/xml\n\n{\"a\": 1}\n", ["json"]],
+  // a header naming a language the query knows is a claim the text did not
+  // bear out: the body is left as it is, and not tried as .http either
   ["http", "POST /x\nContent-Type: application/json\n\nnot json\n", []],
+  ["http", "POST /x\nContent-Type: text/html\n\nGET /y\n", []],
   ["http", "POST /x\n\n<a/>\n", ["xml"]],
   ["http", "POST /x\nContent-Type: text/html\n\n<p>hi</p>\n", ["xml"]],
   ["http", "POST /x\n\n<!DOCTYPE html>\n<p>hi</p>\n", ["html"]],
   ["http", "POST /x\n\n<html lang=\"en\"><p>hi</p></html>\n", ["html"]],
   ["http", "POST /x\n\n<htmlish/>\n", ["xml"]],
   // a form body is the grammar's own pairs: no language is asked for; a
-  // placeholder is
+  // placeholder is, and a body that is only placeholders is not tried
   ["http", "POST /x\n\nname=foo&b=2\n", []],
   ["http", "POST /x\nContent-Type: application/json\n\nname=foo\n", []],
   ["http", "POST /x\nContent-Type: application/x-www-form-urlencoded\n\nfoo bar\n", []],
-  ["http", "POST /x\n\na = b\n", []],
+  ["http", "POST /x\n\na = b\n", [], ["http"]],
   ["http", "POST /x\n\n{{payload}}\n", ["expression"]],
   ["http", "POST /x\nContent-Type: application/json\n\n< ./body.json\n", []],
   ["http", "POST /x\nContent-Type: message/http\n\nGET /y HTTP/1.1\nHost: a\n", ["http_message"]],
   ["http", "POST /x\nContent-Type: message/http\n\n{\"a\": 1}\n", ["json"]],
   ["http", "POST /x\n\n{\"a\": 1}\n\nHTTP/1.1 200 OK\n\n<b/>\n", ["json", "xml"]],
+  // a request body keeps its blank lines, and the nested message its own;
+  // the nested message's own body is that layer's, not this list's
+  ["http", "POST /x\n\n{\n  \"a\": 1,\n\n  \"b\": 2\n}\n", ["json"]],
+  ["http", "POST /x\nContent-Type: message/http\n\nPOST /y HTTP/1.1\nHost: a\n\n{\"a\": 1}\n\nHTTP/1.1 200 OK\n\n<b/>\n", ["http_message", "xml"]],
+  // the grammar reads a raw body as itself: a .http document on its way to
+  // a client, under a label that says nothing, opening however a document
+  // may — a declaration, a comment, a request line with no version
+  ["http", "POST /x\nContent-Type: application/octet-stream\n\nPOST https://echo.http.vet\nContent-Type: application/json\n\n{\n  \"wild\": true\n}\n", ["http"]],
+  ["http", "POST /x\n\n@host = a\n# a comment\nGET https://{{host}}/y\n", ["http", "expression"]],
+  ["http", "POST /x\n\n// @name login\nPOST /y\n\n{\"a\": 1}\n", ["http"]],
+  ["http", "POST /x\n\nGET /y HTTP/1.1\nHost: a\n", ["http"]],
+  ["http", "POST /x\nContent-Type: text/plain\n\nGET /y\n", ["http"]],
+  // and declines one that is not: the parse's errors are the guess's
+  ["http", "POST /x\n\nhello\n", [], ["http"]],
+  ["http", "POST /x\nContent-Type: text/plain\n\nRows arrive one per line.\nRead them as text.\n", [], ["http"]],
+  // the grammar's verdict, not a guess about the text: an implied GET and
+  // plain lines under it is a .http document, so this is one
+  ["http", "POST /x\n\nid,name,live\n1,gauge,true\n", ["http"]],
   ["http_message", "POST /x HTTP/1.1\nContent-Type: application/json\n\n{\"a\": 1}\n", ["json"]],
-  ["http_message", "POST /x HTTP/1.1\nContent-Type: application/xml\n\n{\"a\": 1}\n", ["xml"]],
+  ["http_message", "POST /x HTTP/1.1\nContent-Type: application/xml\n\n{\"a\": 1}\n", ["json"]],
   ["http_message", "POST /x HTTP/1.1\nContent-Type: application/problem+json; charset=utf-8\n\nnot json\n", ["json"]],
   ["http_message", "POST /x HTTP/1.1\ncontent-type: TEXT/JSON\n\nnot json\n", ["json"]],
   ["http_message", "POST /x HTTP/1.1\nContent-Type: image/svg+xml\n\n<svg/>\n", ["xml"]],
-  ["http_message", "POST /x HTTP/1.1\n\n{\"a\": 1}\n", []],
+  ["http_message", "POST /x HTTP/1.1\n\n{\"a\": 1}\n", ["json"]],
+  ["http_message", "POST /x HTTP/1.1\nContent-Type: application/octet-stream\n\n[1]\n", ["json"]],
   ["http_message", "HTTP/1.1 200 OK\nContent-Type: text/html; charset=utf-8\n\n<p>hi</p>\n", ["html"]],
   ["http_message", "HTTP/1.1 200 OK\nContent-Type: application/xhtml+xml\n\n<p/>\n", ["html"]],
-  ["http_message", "HTTP/1.1 200 OK\n\n<!DOCTYPE html>\n", []],
+  ["http_message", "HTTP/1.1 200 OK\n\n<!DOCTYPE html>\n", ["html"]],
+  ["http_message", "HTTP/1.1 200 OK\nContent-Type: application/xml\n\n<html><p/></html>\n", ["html"]],
+  ["http_message", "POST /x HTTP/1.1\nContent-Type: application/octet-stream\n\n<a/>\n", ["xml"]],
   ["http_message", "POST /x HTTP/1.1\nContent-Type: application/x-www-form-urlencoded\n\na=1\n", ["form_urlencoded"]],
-  ["http_message", "POST /x HTTP/1.1\n\na=1\n", []],
+  ["http_message", "POST /x HTTP/1.1\n\na=1\n", ["form_urlencoded"]],
+  ["http_message", "POST /x HTTP/1.1\n\na= 1\n", [], ["http_message"]],
+  // the wire grammar reads a body as itself
+  ["http_message", "POST /x HTTP/1.1\nContent-Type: application/octet-stream\n\nGET /y HTTP/1.1\nHost: a\n", ["http_message"]],
+  ["http_message", "POST /x HTTP/1.1\nContent-Type: text/plain\n\nHTTP/1.1 200 OK\n\nhi\n", ["http_message"]],
+  ["http_message", "POST /x HTTP/1.1\n\nGET y\nHost: a\n", ["http_message"]],
+  ["http_message", "POST /x HTTP/1.1\nContent-Type: message/http\n\nnot a message\n", ["http_message"]],
+  ["http_message", "POST /x HTTP/1.1\n\nhello world HTTP/1.1 is a protocol\n", [], ["http_message"]],
+  ["http_message", "POST /x HTTP/1.1\n\n< not a tag\n", [], ["http_message"]],
 ];
-for (const [dialect, text, expected] of routing) {
+for (const [dialect, text, expected, declined = []] of routing) {
   const painted = analyze(bundles.get(dialect), bundles, text);
-  const asked = painted.injections.map((one) => one.language);
-  ok(asked.join() === expected.join(),
-     `${dialect}: ${JSON.stringify(text)} routed to [${asked}], not [${expected}]`);
+  const kept = painted.injections.filter((one) => !one.declined).map((one) => one.language);
+  const tried = painted.injections.filter((one) => one.declined).map((one) => one.language);
+  ok(kept.join() === expected.join(),
+     `${dialect}: ${JSON.stringify(text)} routed to [${kept}], not [${expected}]`);
+  ok(tried.join() === declined.join(),
+     `${dialect}: ${JSON.stringify(text)} tried and declined [${tried}], not [${declined}]`);
 }
 note(`${routing.length} routing cases`);
 
@@ -156,6 +200,11 @@ const inside = [
   // a placeholder inside a nested wire message is masked for that layer too
   ["HTTP/1.1 200 OK\nContent-Type: message/http\n\nPOST /x HTTP/1.1\nHost: {{host}}\n",
    64, "property", 67, "punctuation special", 70, "variable", 73, "punctuation special", true],
+  // a .http document in a request body, read by the file grammar under a
+  // label that says nothing, keeps the blank line its own body needs, and
+  // that body is JSON to the nested layer
+  ["POST /x\nContent-Type: application/octet-stream\n\nPOST /y HTTP/1.1\nHost: a\n\n{\"a\": 1}\n",
+   65, "property", 76, "string special key", true],
 ];
 for (const [text, ...expected] of inside) {
   const painted = analyze(bundles.get("http"), bundles, text);

@@ -20,7 +20,7 @@ The dialects are spelled `http` and `http_message` wherever an identifier is nee
 
 ```
 common/define-grammar.js    the grammar: module.exports = (wire) => grammar({...})
-common/scanner.h            the external scanner: _eol, and the {{ that opens a placeholder
+common/scanner.h            the external scanner: _eol, the placeholder, and the looks a token cannot make
 <dialect>/grammar.js        a one-line shim calling define-grammar
 <dialect>/src/              generated, committed; scanner.c is a two-line shim
 <dialect>/test/corpus/      the corpus
@@ -43,7 +43,7 @@ Edit the grammar, the scanner, the corpus, the queries, and the bindings. Never 
 - **File-format items** — no `comment`, `directive`, `declaration`, `separator`/`region`. The items are request, response, blank.
 - **Implied GET** — the request line requires a method; an unknown first word is an error.
 - **Target continuations and `#` lines in header blocks** — both are `plain`.
-- **Body termination and typing** — a body runs to EOF as one opaque `body` node; no `###`, blank line, or `HTTP/` status line ends it. Its language comes from the message's own Content-Type, which is what `queries/http_message/injections.scm` matches on. The file dialect types a body from its first line (`json_body`, `xml_body`, `form_body`, `file_body`, `raw_body`) and reads placeholders inside it; `queries/http/injections.scm` routes by that type — the header does not overrule what the text reveals — and sends a `raw_body` whose message declares `message/http`, the one body no opener reveals, to `http_message`.
+- **Body termination and typing** — a body runs to EOF as one opaque `body` node; no `###`, blank line, or `HTTP/` status line ends it, and its trailing blank lines are its octets. Its language is what its first line reveals — `{` or `[`, `key=`, a doctype — then what the message's own Content-Type declares, then the `<` that only a header could have made HTML, and last the wire grammar itself, tentatively, in that order in `queries/http_message/injections.scm`. The file dialect types a body from its first line (`json_body`, `xml_body`, `form_body`, `file_body`, `raw_body`) and reads placeholders inside it; `queries/http/injections.scm` routes by that type — the header does not overrule what the text reveals — and a `raw_body` goes to `http_message` when the message declares `message/http`, is left alone when the header names a language the text did not bear out, and otherwise goes to `http` itself, tentatively. A tentative handoff (`#set! injection.tentative`) is the painter's to keep or decline: kept when the range parses clean, declined — nothing painted, the errors the guess's own — when it does not, which is how a `.http` document inside a request is read by the grammar that reads the file, recursively, and a body that is not one stays as it is. In the file dialect a body keeps its blank lines and ends at the last of them before `###`, EOF, or a status line at the margin — the response — on either side of an exchange; the scanner's `_body_blank` reads past a blank run to decide whether the body goes on.
 
 Each switch is a corpus case under `http_message/test/corpus/`, and the guide computes the rule-by-rule diff between the two generated grammars.
 

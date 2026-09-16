@@ -36,22 +36,26 @@
 //   - A body is lines, typed by its first line (JSON, XML, form-encoded,
 //     `< file`, or raw), with placeholders read inside them. The first
 //     line's first token, after any indentation, is what types it. Nothing
-//     about an `HTTP/x nnn` line ends one; a body line that looks like a
-//     status line is body text. But a body never *opens* with one: a status
-//     line where a body could begin is a response — a response is never a
-//     body. What ends one is where it sits: a request's body ends at a blank
-//     line — the same blank line that lets an inline response follow it —
-//     while a response's body is terminal and ends only at `###` or EOF, so
-//     the blank lines inside it are content. That asymmetry is what carries
-//     `Content-Type: message/http`: the echo answers with the request's own
-//     octets, blank line and body included.
+//     a body contains ends it: a status line, a `#` line or a `@` line
+//     inside one is body text, and so is a blank line that more body
+//     follows. What ends it is what comes after its last blank lines — the
+//     last of the region: `###`, the end of the file, or a status line at
+//     the margin, which is the response — and a blank line a body could
+//     resume at is content only when it does resume; the scanner's
+//     `_body_blank` reads past the run to decide, so the trailing blank
+//     lines are the region's, never the body's. A body never *opens* with a
+//     status line either: a status line where a body could begin is a
+//     response — a response is never a body. A request's body and a
+//     response's are one rule. That is what carries `Content-Type:
+//     message/http`: the echo answers with the request's own octets, blank
+//     line and body included, and a body sent to the echo holds the same.
 //   - A form body's pairs are the wire format, `key=value` joined by `&`,
 //     with the one extension every client observes: a line may break before
 //     an `&`, so a pair line after the first begins with one. Nothing else
 //     is pair syntax — a space is never a separator, and a space after `=`
 //     makes the line prose, not a pair. A line that begins with neither is
-//     body text, as in every other type: the body still runs to the blank
-//     line, and nothing it contains ends it. The body is typed by its first
+//     body text, as in every other type: the body still runs on, and
+//     nothing it contains ends it. The body is typed by its first
 //     pair, decided by the scanner (`_form_start`, zero-width) the way the
 //     other types are decided by their opener tokens.
 //
@@ -67,10 +71,11 @@
 //   - Comments in header blocks: a `#` line is a `header`/`plain` like any
 //     other.
 //   - Body termination and typing: a body runs to EOF — no `###`, no blank
-//     line, no `HTTP/` status line ends it — and is one opaque `body` node,
-//     the same terminal body a response carries in http. On the wire a
-//     body's type is declared by Content-Type, not sniffed from its first
-//     line; each dialect's queries/injections.scm encodes its rule.
+//     line, no `HTTP/` status line ends it, and its trailing blank lines are
+//     its octets — and is one opaque `body` node. Its language is the
+//     query's to find (queries/http_message/injections.scm): what the
+//     body's first line reveals, then what Content-Type declares, and last
+//     this grammar itself, tentatively.
 //
 // Whitespace. Both dialects are line-oriented with no `extras`, so every
 // space and newline is some token's, and one rule says whose:
@@ -82,7 +87,9 @@
 //   - `_eol` ends a line and owns the whitespace before it: a newline, or
 //     zero-width at end of file, with the spaces before it, from the
 //     scanner. No rule writes a `_ws` in front of an `_eol`.
-//   - `_blank` is a whitespace-only line.
+//   - `_blank` is a whitespace-only line between items. Inside a body the
+//     scanner's `_body_blank` is a run of them that more body follows,
+//     hidden like `_ws`.
 //   - A visible token never begins or ends with whitespace — `text()` below
 //     is the shape of every one that runs along a line, and a placeholder
 //     token runs from its `{{` to its `}}`. A value is pieces, text and
@@ -97,11 +104,12 @@
 //
 // The scanner (common/scanner.h) supplies `_eol`, and for the file dialect
 // `placeholder` — a whole `{{…}}`, decided by looking along the line for the
-// `}}` — and the two body openers a token cannot state without looking past
+// `}}` — the two body openers a token cannot state without looking past
 // itself: `_form_start`, zero-width at a `key=`, and `_file_open`, the `<`
-// or `<@name` that whitespace and a path follow. What a placeholder holds
-// is the expression grammar's (../expression), reached by injection; here
-// it is one token, opaque.
+// or `<@name` that whitespace and a path follow — and `_body_blank`, the
+// blank lines inside a body, decided by looking past them at the line that
+// follows. What a placeholder holds is the expression grammar's
+// (../expression), reached by injection; here it is one token, opaque.
 //
 // What a line *is* falls out of lexical precedence, highest first: `###`
 // (10), a typed body's opener (9), a body line (8), a status line (7), a raw
@@ -110,9 +118,10 @@
 // comment so `# text` inside a body stays body, and it outranks a status
 // line so `HTTP/1.1 …` inside one stays body — but the raw opener sits
 // below the status line, so where a body *could* begin a status line is a
-// response instead. A blank line is the one thing a body line cannot be —
-// where a body may end at one, its tokens decline to match it, and `_blank`
-// (1) outlasts the `_ws` (1) that would otherwise be its indentation.
+// response instead. A blank line is the one thing a body line's tokens
+// never match: a run of them is the scanner's `_body_blank` when a body
+// line follows, and otherwise `_blank` (1), which outlasts the `_ws` (1)
+// that would otherwise be its indentation.
 
 const PREC = {
   // `###` ends any body, so it outranks every body token.
@@ -167,11 +176,13 @@ module.exports = (wire) =>
     // on the same line with no brace between, one token, its inside the
     // expression grammar's; `_form_start` is zero-width at a body's first
     // line when that line opens `key=`; `_file_open` is the `<` or `<@name`
-    // a body's first line opens with when whitespace and a path follow it.
-    // Each is a decision that needs to look past the token.
+    // a body's first line opens with when whitespace and a path follow it;
+    // `_directive_start` is zero-width at the `@` a directive's name
+    // follows; `_body_blank` is the blank lines inside a body that a body
+    // line follows. Each is a decision that needs to look past the token.
     externals: wire
       ? ($) => [$._eol]
-      : ($) => [$._eol, $.placeholder, $._form_start, $._file_open, $._directive_start],
+      : ($) => [$._eol, $.placeholder, $._form_start, $._file_open, $._directive_start, $._body_blank],
 
     // No conflicts: wherever a space could belong to two rules, a closer
     // owns it, and the scanner decides by looking past it.
@@ -377,7 +388,7 @@ module.exports = (wire) =>
                 optional($._status_line_tail),
                 $._eol,
                 repeat(choice($.header, $.comment, $.plain)),
-                optional(seq(repeat1($._blank), optional(field("body", $._terminal_body)))),
+                optional(seq(repeat1($._blank), optional(field("body", $._body)))),
               ),
             ),
       // The engine's rule: a first word beginning `HTTP/` is a response, and
@@ -395,27 +406,28 @@ module.exports = (wire) =>
 
       // MARK: Bodies — lines of text and placeholders
       //
-      // http types a body by its first line, and carries each type twice.
-      // A request's body ends at a blank line, so an inline response can
-      // follow it; a response's body is terminal — only `###` or EOF ends
-      // it — so a blank line inside it is content. That is what lets a
-      // `Content-Type: message/http` body hold the echoed request whole,
-      // its own header/body blank line included. The pair differ in one
-      // rule, the line they repeat, and alias to the same node names, so
-      // a query never sees which side it is on. Both are right-associative:
-      // a line that could continue the body or begin the next message —
-      // one opening with `{`, now that a placeholder may — continues it.
+      // http types a body by its first line. A request's body and a
+      // response's are the same rule: lines, and the blank lines between
+      // them, up to the last blank lines before `###`, the end of the file
+      // or a status line — the response, inline after a request or the
+      // next after a response. That is what lets a `Content-Type:
+      // message/http` body hold the echoed request whole, its own
+      // header/body blank line included, on either side. Every type is
+      // right-associative: a line that could continue the body or begin the
+      // next message — one opening with `{`, now that a placeholder may —
+      // continues it.
       //
       // A body line is its indentation, then pieces with `_ws` between them:
       // `_body_text` runs between braces, `{` and `}` on their own, and
       // `placeholder` read the way a header value reads it. What decides the
       // line is its first token after the indentation — a typed opener, the
       // raw opener, or a piece at `BODY` — and a whitespace-only line has
-      // none of those, so where a body may end at a blank line, `_blank`
-      // takes it.
+      // none of those: a run of them is the scanner's `_body_blank` when a
+      // body line follows, and `_blank`, the region's, when nothing does.
       //
-      // wire has one `body` node, terminal like a response's, opaque: each
-      // line is its indentation, one text token, and its end.
+      // wire has one `body` node, terminal, opaque: each line is its
+      // indentation, one text token, and its end, and a blank line is its
+      // own token at `BODY`, so the body runs to EOF.
 
       ...(wire
         ? {
@@ -427,14 +439,6 @@ module.exports = (wire) =>
           }
         : {
             _body: ($) => choice($.json_body, $.xml_body, $.form_body, $.file_body, $.raw_body),
-            _terminal_body: ($) =>
-              choice(
-                alias($._terminal_json_body, $.json_body),
-                alias($._terminal_xml_body, $.xml_body),
-                alias($._terminal_form_body, $.form_body),
-                alias($._terminal_file_body, $.file_body),
-                alias($._terminal_raw_body, $.raw_body),
-              ),
 
             // `[`, or `{` not followed by another `{` (that is a placeholder).
             // The opener runs to the first brace on its line; the rest of the
@@ -442,15 +446,13 @@ module.exports = (wire) =>
             // first line — is the one opener the regex cannot state without
             // looking past it, so it is the plain `{` token followed by the
             // line end, which nothing else reads that way.
-            json_body: ($) => prec.right(seq($._json_line, repeat($._body_line))),
-            _terminal_json_body: ($) => prec.right(seq($._json_line, repeat($._terminal_line))),
+            json_body: ($) => prec.right(seq($._json_line, repeat($._body_next))),
             _json_line: ($) =>
               seq(optional($._ws), choice(seq($._json_head, $._rest), prec(1, seq("{", $._eol)))),
             _json_head: () =>
               token(prec(PREC.TYPED_BODY, /\[([^\r\n{}]*[^\s{}])?|\{[ \t]*[^{\s]([^\r\n{}]*[^\s{}])?/)),
 
-            xml_body: ($) => prec.right(seq($._xml_line, repeat($._body_line))),
-            _terminal_xml_body: ($) => prec.right(seq($._xml_line, repeat($._terminal_line))),
+            xml_body: ($) => prec.right(seq($._xml_line, repeat($._body_next))),
             _xml_line: ($) => seq(optional($._ws), $._xml_head, $._rest),
             // `<` then a tag's first character: not a space, `@` (a file body),
             // another `<`, or a brace (a placeholder, which is raw text).
@@ -461,15 +463,13 @@ module.exports = (wire) =>
             // begins with one. That is all the pair syntax there is — no
             // space separates anything, and a space after `=` makes the line
             // prose and the body raw, like `a = b`. Any other line is body
-            // text, so the body runs to the blank line like every other type
-            // and a status line inside it stays inside it. The opener is the
+            // text, so the body runs on like every other type and a status
+            // line inside it stays inside it. The opener is the
             // scanner's `_form_start`: zero-width, true when the line reads
             // `key=` from a first character none of the other openers claim,
             // with no space after the `=`. A pair line's `&` is its opener,
             // at TYPED_BODY, so it outranks the text a body line would read.
-            form_body: ($) => prec.right(seq($._form_line, repeat(choice($._form_next, $._body_line)))),
-            _terminal_form_body: ($) =>
-              prec.right(seq($._form_line, repeat(choice($._form_next, $._terminal_line)))),
+            form_body: ($) => prec.right(seq($._form_line, repeat(choice($._form_next, $._body_next)))),
             _form_line: ($) => seq(optional($._ws), $._form_start, $.pair, repeat($._amp_pair), $._eol),
             _form_next: ($) => seq(optional($._ws), $._amp_pair, repeat($._amp_pair), $._eol),
             _amp_pair: ($) => seq(alias($._amp, "&"), optional($.pair)),
@@ -488,29 +488,26 @@ module.exports = (wire) =>
 
             // `< ./file`, `<@ ./file`, `<@name ./file`: the scanner's opener,
             // whitespace, the path.
-            file_body: ($) => prec.right(seq($._file_line, repeat($._body_line))),
-            _terminal_file_body: ($) => prec.right(seq($._file_line, repeat($._terminal_line))),
+            file_body: ($) => prec.right(seq($._file_line, repeat($._body_next))),
             _file_line: ($) => seq(optional($._ws), $._file_open, $._ws, field("path", $.path), $._eol),
             path: () => text(""),
 
             // A raw body's first line: the raw opener, or a line that opens
             // with a placeholder or braces — the json opener has declined a
             // `{` only when another brace follows it.
-            raw_body: ($) => prec.right(seq($._raw_line, repeat($._body_line))),
-            _terminal_raw_body: ($) => prec.right(seq($._raw_line, repeat($._terminal_line))),
+            raw_body: ($) => prec.right(seq($._raw_line, repeat($._body_next))),
             _raw_line: ($) => seq(optional($._ws), choice($._raw_start, $.placeholder, $._braces), $._rest),
             _raw_start: () => token(prec(PREC.RAW_OPENER, text("{}"))),
 
+            // What follows a body's first line: a line inside it, or the blank
+            // lines before one — the scanner's, so a run of blank lines that
+            // no body line follows is never taken.
+            _body_next: ($) => choice($._body_line, $._body_blank),
             // A line inside a body: indentation, then pieces. Never blank.
             _body_line: ($) => seq(optional($._ws), $._piece, $._rest),
             // The rest of a body line after its first token: more pieces, then
             // the line's end.
             _rest: ($) => seq(repeat(seq(optional($._ws), $._piece)), $._eol),
-
-            // A terminal body's line: the same, or a blank line — content
-            // here, so its token outranks `_blank`.
-            _terminal_line: ($) => choice($._body_line, $._terminal_blank),
-            _terminal_blank: () => token(prec(PREC.BODY, /[ \t]*(\r?\n|\r)/)),
 
             _piece: ($) => choice($._body_text, $.placeholder, $._braces),
             _body_text: () => token(prec(PREC.BODY, text("{}"))),

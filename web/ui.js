@@ -743,9 +743,12 @@ const ancestry = (node) => {
 const injectionAt = (entry, at) =>
   entry.injections.filter((one) => one.start <= at && at < one.end).at(-1) ?? null;
 
+/** A range another grammar answered for and kept: not opaque, not tried and declined. */
+const kept = (one) => one.resolved && !one.declined;
+
 /** The innermost range another grammar answered for that holds the caret, or null. */
 const handedAt = (entry, at) =>
-  entry.injections.filter((one) => one.resolved && one.start <= at && at < one.end).at(-1) ?? null;
+  entry.injections.filter((one) => kept(one) && one.start <= at && at < one.end).at(-1) ?? null;
 
 /** The way into the range that holds the caret, as a pill. */
 const goIn = (entry, record) =>
@@ -1435,9 +1438,11 @@ const RULES = cssRules(CSS);
 function capInject(entry) {
   const records = entry.injections.filter((one) => one.depth === 0);
   const opaque = records.filter((one) => !one.resolved).length;
+  const declined = records.filter((one) => one.declined).length;
   return html`${records.length
     ? html`<b>${plural(records.length, "range")} requested another grammar.</b>${opaque
-      ? html` <span class="warn">${opaque} unresolved.</span>` : ""}`
+      ? html` <span class="warn">${opaque} unresolved.</span>` : ""}${declined
+      ? html` ${declined} tried and declined.` : ""}`
     : html`<b>No range went to another grammar.</b>`}`;
 }
 
@@ -1446,7 +1451,7 @@ function capInject(entry) {
 function paintInject(entry, source) {
   const mark = new Array(source.length).fill("flat");
   for (const record of entry.injections) {
-    mark.fill(record.resolved ? "inject" : "opaque", record.start, record.end);
+    mark.fill(kept(record) ? "inject" : "opaque", record.start, record.end);
   }
   return { colour: entry.painted.classes, mark };
 }
@@ -1455,8 +1460,10 @@ function seeInject(entry) {
   return html`
     ${lead("inject-at", injectLead(entry))}
     <h3>inside the range</h3>
-    ${entry.injections.some((one) => one.resolved) ? box("inject-chain", chainReport(entry))
-      : html`<p>${entry.injections.length ? "No loaded grammar can read these ranges." : "No grammar handoff in this text."}</p>`}`;
+    ${entry.injections.some(kept) ? box("inject-chain", chainReport(entry))
+      : html`<p>${!entry.injections.length ? "No grammar handoff in this text."
+        : entry.injections.every((one) => one.declined) ? "Every range was tried as its own grammar and declined; nothing was handed on."
+        : "No loaded grammar can read these ranges."}</p>`}`;
 }
 
 /** The step's answer, first: the range under the caret and who took it, by
@@ -1467,9 +1474,13 @@ function injectLead(entry) {
   const records = entry.injections.filter((one) => one.depth === 0);
   entry.scrollTo = null;
   if (!here) return facts("not in an injected range",
-    records.some((one) => one.resolved) ? "the first range below" : null);
+    records.some(kept) ? "the first range below" : null);
   if (!here.resolved) return facts(html`→ <b>${here.language}</b> ${span(here.start, here.end)}`,
     html`injections #${here.patternIndex}`, html`<span class="warn">no grammar, opaque</span>`);
+  if (here.declined) return facts(html`→ <b>${here.language}</b> ${span(here.start, here.end)}`,
+    html`injections #${here.patternIndex}`,
+    html`tried and declined: ${plural(here.errors, "error")}, so the range stays as it is`,
+    goIn(entry, here));
   // The route down to the range: its ancestors, innermost last. Ranges from
   // one grammar can sit inside one another — a placeholder in a body — and
   // those are siblings, not a route: the body's grammar read the placeholder
@@ -1481,7 +1492,7 @@ function injectLead(entry) {
       ? entry.injections.filter((p) => p.depth === one.depth - 1 && p.start <= one.start && one.end <= p.end).at(-1) ?? null
       : null;
   }
-  const masked = records.filter((one) => one !== route[0] && one.resolved && one.start <= here.start && here.end <= one.end).at(-1);
+  const masked = records.filter((one) => one !== route[0] && kept(one) && one.start <= here.start && here.end <= one.end).at(-1);
   return facts(
     html`${entry.dialect.name}${route.map((one) => html` → <b>${one.language}</b>`)}`,
     html`${span(here.start, here.end)}`,
@@ -1500,8 +1511,8 @@ function chainReport(entry) {
   const records = entry.injections.filter((one) => one.depth === 0);
   // The innermost range under the caret: a placeholder inside a body is the
   // body's hole and its own range, and its own grammar is the one to run.
-  const record = records.filter((one) => one.resolved && one.start <= at && at < one.end).at(-1)
-    ?? records.find((one) => one.resolved) ?? null;
+  const record = records.filter((one) => kept(one) && one.start <= at && at < one.end).at(-1)
+    ?? records.find(kept) ?? null;
   if (!record) {
     return html`<p class="muted">${records.length
       ? "No range here went to a grammar that answers, so there are no steps to run inside one."
@@ -1516,7 +1527,7 @@ function chainReport(entry) {
     analyse(level);
     blocks.push(chainFor(level, rel, depth === 0 ? entry.injections.indexOf(range) : null, range));
     // Down again if this grammar handed the caret's character on.
-    const next = level.injections.find((one) => one.depth === 0 && one.resolved && one.start <= rel && rel < one.end);
+    const next = level.injections.find((one) => one.depth === 0 && kept(one) && one.start <= rel && rel < one.end);
     level.parsed.tree.delete();
     if (!next) break;
     from = level;
@@ -1578,7 +1589,8 @@ function chainFor(level, rel, index, range) {
   const inject = !level.injectionsQuery
     ? html`${name} has no injection query, so nothing goes further`
     : child
-      ? html`hands ${child.start}–${child.end} to <b>${child.language}</b> by pattern ${child.patternIndex}${child.resolved ? "" : " — opaque: no grammar answers"}`
+      ? html`${child.tentative ? "tries" : "hands"} ${child.start}–${child.end} ${child.tentative ? "as" : "to"} <b>${child.language}</b> by pattern ${child.patternIndex}${
+          !child.resolved ? " — opaque: no grammar answers" : child.declined ? ` — declined: ${plural(child.errors, "error")}` : ""}`
       : "hands nothing on here";
 
   // This describes the whole range, not the narrow stage-name column.

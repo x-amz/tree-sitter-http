@@ -195,8 +195,7 @@ DELETE https://example.com/a
 ---
 
 ==================
-A blank line ends a request body
-:error
+A request body keeps its blank lines
 ==================
 POST https://example.com/a
 
@@ -207,6 +206,106 @@ POST https://example.com/a
 }
 
 ---
+
+(document
+  (request
+    (method)
+    (target
+      (url_text))
+    (json_body)))
+
+==================
+A request body ends at the blank lines before a separator, and at the end of the file
+==================
+POST https://example.com/a
+
+first
+
+second
+
+
+###
+POST https://example.com/b
+
+last
+
+
+---
+
+(document
+  (request
+    (method)
+    (target
+      (url_text))
+    (raw_body))
+  (region
+    (separator)
+    (request
+      (method)
+      (target
+        (url_text))
+      (raw_body))))
+
+==================
+A request body ends at the blank lines before a status line: that is the response
+==================
+POST https://example.com/echo
+Content-Type: message/http
+
+POST /a HTTP/1.1
+Host: example.com
+
+{"a": 1}
+
+HTTP/1.1 200 OK
+
+HTTP/1.1 201 Created
+
+---
+
+(document
+  (request
+    (method)
+    (target
+      (url_text))
+    (header
+      (header_name)
+      (value
+        (value_text)))
+    (raw_body))
+  (response
+    (version)
+    (status_code)
+    (reason_phrase))
+  (response
+    (version)
+    (status_code)
+    (reason_phrase)))
+
+==================
+A blank line inside a body does not end it, whatever the line after it looks like
+==================
+POST https://example.com/a
+
+one
+
+# not a comment
+
+@not = a declaration
+
+  ### indented, not a separator
+
+HTTP/x not a status line
+two
+
+---
+
+(document
+  (request
+    (method)
+    (target
+      (url_text))
+    (raw_body)))
 
 ==================
 A response body keeps its blank lines
@@ -477,7 +576,7 @@ GET https://example.com/next
         (url_text)))))
 
 ==================
-A request body still ends at a blank line, placeholders or not
+A blank line inside a request body does not end it, placeholders or not
 ==================
 POST https://example.com/anything
 
@@ -493,11 +592,8 @@ POST https://example.com/anything
     (target
       (url_text))
     (json_body
-      (placeholder)))
-  (request
-    (target
       (placeholder)
-      (url_text))))
+      (placeholder))))
 
 ==================
 Form body, typed by its first pair

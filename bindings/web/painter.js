@@ -13,6 +13,14 @@
 // error recovery spread over the object. The mask is never painted: the
 // layer's strokes stop at every placeholder, so the host's paint of it
 // stands. A body that is nothing but placeholders is not parsed.
+//
+// A pattern may hand a range over tentatively (`#set! injection.tentative`):
+// the language is tried, kept when the range parses clean, and declined
+// when it does not — nothing painted, its errors its own and not the
+// document's, the record saying so. That is how a dialect reads a body as
+// itself: a raw body that parses as a `.http` document is one, and one that
+// does not is left as it is. A pattern that names no language claims its
+// range and says nothing, so a later pattern cannot take it.
 
 import { Parser, Query } from "./dist/tree-sitter.js";
 
@@ -49,8 +57,9 @@ export function injectionNames(b) {
  * bundles. Returns per-character capture classes (dots split into class
  * lists), the injection names the text asked for that no language answered,
  * the parse verdicts, and the injection tree that was walked — every range,
- * the language it named, whether that language was there, how deep it sat,
- * and what its own parser made of it. `maxDepth` of 0 finds the ranges
+ * the language it named, whether that language was there, whether it was
+ * tried tentatively and declined, how deep it sat, and what its own parser
+ * made of it. `maxDepth` of 0 finds the ranges
  * without parsing into them, which is what a caller wants when it is showing
  * the host grammar's own work and has not reached the handover yet. A range
  * handed to another grammar is parsed by that grammar, so its errors are that
@@ -69,6 +78,7 @@ export function analyze(b, languages, source, maxDepth = MAX_DEPTH) {
   let injectedBad = 0;
   const count = (records) => {
     for (const record of records) {
+      if (record.declined) continue;
       injected += record.errors ?? 0;
       if (record.hasError) injectedBad += 1;
       count(record.children);
@@ -158,6 +168,13 @@ function masked(text, holes) {
  */
 function paint(classes, b, languages, source, layer, depth, unresolved, injections, maxDepth) {
   const tree = b.parser.parse(source, null, layer ? { includedRanges: [layer.range] } : undefined);
+  // A tentative layer that did not parse clean is declined before a stroke
+  // is painted: the errors are the guess's, not the document's.
+  if (layer?.tentative && tree.rootNode.hasError) {
+    const errors = tree.rootNode.descendantsOfType("ERROR").length;
+    tree.delete();
+    return { hasError: true, errors, declined: true };
+  }
   paintCaptures(classes, b.query, tree.rootNode, layer);
   if (b.injections && depth < maxDepth) {
     // One language per range. Several patterns may claim the same node — the
@@ -168,7 +185,9 @@ function paint(classes, b, languages, source, layer, depth, unresolved, injectio
     for (const match of b.injections.matches(tree.rootNode)) {
       // injection.language is a #set! property on the pattern, or a captured
       // node whose own text names the language (the markdown-fence form).
-      let name = b.injections.setProperties[match.patternIndex]?.["injection.language"];
+      const properties = b.injections.setProperties[match.patternIndex] ?? {};
+      let name = properties["injection.language"];
+      const tentative = "injection.tentative" in properties;
       for (const capture of match.captures) {
         if (capture.name === "injection.language") {
           name = source.slice(capture.node.startIndex, capture.node.endIndex);
@@ -178,12 +197,18 @@ function paint(classes, b, languages, source, layer, depth, unresolved, injectio
         if (capture.name !== "injection.content") continue;
         const held = claims.get(capture.node.id);
         if (held && held.patternIndex <= match.patternIndex) continue;
-        claims.set(capture.node.id, { node: capture.node, name, patternIndex: match.patternIndex });
+        claims.set(capture.node.id, { node: capture.node, name, tentative, patternIndex: match.patternIndex });
       }
     }
     const ranges = [...claims.values()].sort((a, b) => a.node.startIndex - b.node.startIndex);
-    for (const { node, name, patternIndex } of ranges) {
+    for (const { node, name, tentative, patternIndex } of ranges) {
+      // A claim that names nothing leaves the range as it is.
+      if (name === undefined) continue;
       const target = name && languages.get(name);
+      const inner = injection(node, layer?.holes ?? [], source);
+      // Nothing to try: a tentative range that is only placeholders is not a
+      // handoff at all.
+      if (tentative && inner.empty) continue;
       const record = {
         language: name ?? null,
         patternIndex,
@@ -191,6 +216,8 @@ function paint(classes, b, languages, source, layer, depth, unresolved, injectio
         start: node.startIndex,
         end: node.endIndex,
         resolved: Boolean(target),
+        tentative,
+        declined: false,
         errors: 0,
         hasError: false,
         children: [],
@@ -200,10 +227,14 @@ function paint(classes, b, languages, source, layer, depth, unresolved, injectio
         if (name) unresolved.add(name);
         continue;
       }
-      const inner = injection(node, layer?.holes ?? [], source);
       if (inner.empty) continue;
-      const verdict = paint(classes, target, languages, masked(source, inner.holes), inner,
+      const verdict = paint(classes, target, languages, masked(source, inner.holes), { ...inner, tentative },
                             depth + 1, unresolved, record.children, maxDepth);
+      if (verdict.declined) {
+        record.declined = true;
+        record.errors = verdict.errors;
+        continue;
+      }
       record.errors = verdict.errors;
       record.hasError = verdict.hasError;
     }

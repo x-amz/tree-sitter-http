@@ -127,3 +127,33 @@ HTTP/1.1
 (document
   (response
     (version)))
+
+==================
+A response body ends at the blank lines before a status line too
+==================
+HTTP/1.1 200 OK
+Content-Type: message/http
+
+POST /a HTTP/1.1
+Host: example.com
+
+{"a": 1}
+
+HTTP/1.1 201 Created
+
+---
+
+(document
+  (response
+    (version)
+    (status_code)
+    (reason_phrase)
+    (header
+      (header_name)
+      (value
+        (value_text)))
+    (raw_body))
+  (response
+    (version)
+    (status_code)
+    (reason_phrase)))

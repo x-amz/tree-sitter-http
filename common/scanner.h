@@ -34,6 +34,16 @@
 // comment, and the grammar's `@` token would outrank the comment text and
 // commit the line; the scanner looks along it first.
 //
+// `_body_blank`: a run of blank lines inside a body, which is content only
+// when the body goes on after it — the token is the blank lines, and it is
+// one only when the line after them is a body line: not the end of the
+// file, not `###`, and not a status line, which is the response. A grammar
+// can only say "a blank line, then a body line" by committing to the body
+// at the first blank, and a body ending in blank lines would then be an
+// error; the scanner reads past the run and decides. An indented line
+// after the run is always a body line — a separator and a status line
+// begin at the margin.
+//
 // The file dialect alone has placeholders and typed bodies; the wire dialect
 // defines HAS_PLACEHOLDERS 0 and lists `_eol` alone.
 //
@@ -43,7 +53,7 @@
 
 #include "tree_sitter/parser.h"
 
-enum TokenType { EOL, PLACEHOLDER, FORM_START, FILE_OPEN, DIRECTIVE_START };
+enum TokenType { EOL, PLACEHOLDER, FORM_START, FILE_OPEN, DIRECTIVE_START, BODY_BLANK };
 
 void *SCANNER(create)(void) { return NULL; }
 void SCANNER(destroy)(void *payload) {}
@@ -126,6 +136,47 @@ static bool scan_directive_start(TSLexer *lexer) {
   return lexer->eof(lexer) || is_space(lexer->lookahead) || lexer->lookahead == '=';
 }
 
+// At a line's start inside a body: true when one or more whitespace-only
+// lines run to a line the body continues on. The end is marked after each
+// blank line, so the token is the run and the line after it is the
+// grammar's to read.
+static bool scan_body_blank(TSLexer *lexer) {
+  bool any = false;
+  bool indented = false;
+  for (;;) {
+    indented = false;
+    while (lexer->lookahead == ' ' || lexer->lookahead == '\t') {
+      lexer->advance(lexer, false);
+      indented = true;
+    }
+    if (lexer->lookahead == '\r') {
+      lexer->advance(lexer, false);
+      if (lexer->lookahead == '\n') lexer->advance(lexer, false);
+    } else if (lexer->lookahead == '\n') {
+      lexer->advance(lexer, false);
+    } else {
+      break;
+    }
+    any = true;
+    lexer->mark_end(lexer);
+  }
+  if (!any || lexer->eof(lexer)) return false;
+  if (indented) return true;
+  // At the margin: `###` ends the body, and a version opens the response.
+  if (lexer->lookahead == '#') {
+    lexer->advance(lexer, false);
+    if (lexer->lookahead != '#') return true;
+    lexer->advance(lexer, false);
+    return lexer->lookahead != '#';
+  }
+  static const char version[] = "HTTP/";
+  for (const char *c = version; *c; c++) {
+    if (lexer->lookahead != *c) return true;
+    lexer->advance(lexer, false);
+  }
+  return !((lexer->lookahead >= '0' && lexer->lookahead <= '9') || lexer->lookahead == '.');
+}
+
 static bool may_begin_key(TSLexer *lexer) {
   int32_t c = lexer->lookahead;
   return !lexer->eof(lexer) && !is_space(c) && c != '=' && c != '&' && c != '{' && c != '}' && c != '<' && c != '[';
@@ -168,6 +219,17 @@ bool SCANNER(scan)(void *payload, TSLexer *lexer, const bool *valid_symbols) {
   if (valid_symbols[FORM_START] && may_begin_key(lexer)) {
     if (scan_form_start(lexer)) {
       lexer->result_symbol = FORM_START;
+      return true;
+    }
+    return false;
+  }
+  // A blank run inside a body is decided where a body line ends, and a
+  // declined look has read blank lines and the start of what follows; the
+  // runtime rewinds, and `_blank` reads the first of them.
+  if (valid_symbols[BODY_BLANK] && (lexer->lookahead == ' ' || lexer->lookahead == '\t' ||
+                                    lexer->lookahead == '\r' || lexer->lookahead == '\n')) {
+    if (scan_body_blank(lexer)) {
+      lexer->result_symbol = BODY_BLANK;
       return true;
     }
     return false;

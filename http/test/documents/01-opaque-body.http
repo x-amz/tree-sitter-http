@@ -1,7 +1,6 @@
-### A body whose language nothing here parses
+### A body no grammar here claims
 POST https://api.example.com/import
-Content-Type: text/csv
+Content-Type: text/plain
 
-id,name,live
-1,gauge,true
-2,dial,false
+Rows arrive one per line, as id, name and live.
+Read them as text.

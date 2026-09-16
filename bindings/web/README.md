@@ -55,7 +55,11 @@ returns per-character capture classes, parse verdicts and the injection tree
 rather than HTML. A body is handed to its language with the placeholders the
 host grammar found inside it masked by digits, so the JSON grammar never
 sees a `{{name}}` and a `{{n}}` in value position is a number to it; the
-layer's paint stops at each one.
+layer's paint stops at each one. A handoff a pattern marks tentative
+(`#set! injection.tentative`) is kept when the range parses clean and
+declined when it does not — nothing painted, the record saying so — which
+is how a raw body is read as a `.http` document by the file grammar itself,
+and a wire body as a wire message, recursively.
 
 Built and published from [x-amz/tree-sitter-http](https://github.com/x-amz/tree-sitter-http)
 at the tag the version names, with provenance. The grammar itself is the
