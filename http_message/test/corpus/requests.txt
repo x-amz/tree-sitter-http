@@ -165,7 +165,7 @@ Accept: */*
         (value_text)))))
 
 ==================
-An indented line after a header folds into its value, colons and all
+An indented line after a header continues its value, colons and all
 ==================
 GET /a HTTP/1.1
 Expires: Sat,
@@ -183,10 +183,8 @@ Accept: */*
     (header
       (header_name)
       (value
-        (value_text))
-      (fold
-        (value
-          (value_text))))
+        (value_text)
+        (value_text)))
     (header
       (header_name)
       (value

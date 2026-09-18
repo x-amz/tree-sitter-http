@@ -26,8 +26,8 @@
 //     and a `@` that declares nothing are errors.
 //   - Indented lines beginning with `/`, `?` or `&` right after the request
 //     line continue the target — a fragment never reaches the wire, so `#`
-//     is not one of them. An indented line after a header
-//     continues its value (`fold`). Any other indented line in the header
+//     is not one of them. An indented line after a header continues its
+//     value where the line before stopped. Any other indented line in the header
 //     block is an error: a continuation is always indented, and it continues
 //     something.
 //   - Headers follow until a blank line. For GET/HEAD/OPTIONS/DELETE/TRACE/
@@ -60,7 +60,7 @@
 //     `separator`/`region`. The item set is request, response, blank.
 //   - Implied GET: the request line requires a method.
 //   - Target continuations: an indented line after the request line is an
-//     error. A header still folds.
+//     error. A header's value still runs on across indented lines.
 //   - Comments in header blocks: a `#` line is a `header`/`plain` like any
 //     other.
 //   - Body termination: a body runs to EOF — no `###`, no blank line, no
@@ -82,20 +82,25 @@
 //   - `_blank` is a whitespace-only line between items. Inside a body the
 //     scanner's `_body_blank` is a run of them that more body follows,
 //     hidden like `_ws`.
+//   - `_fold` is a line break inside a header's value: the whitespace
+//     before it, the break, and the next line's indentation, from the
+//     scanner, hidden like `_ws`.
 //   - A visible token never begins or ends with whitespace — `text()` below
 //     is the shape of every one that runs along a line, and a placeholder
 //     token runs from its `{{` to its `}}`. A value is pieces, text and
 //     placeholders, with `_ws` between them, and the `value` node runs from
 //     its first piece to its last. A consumer takes a node's text and trims
-//     nothing.
-//   - A line node — a header, a comment, a fold — spans its `_eol`. An
+//     nothing — except a header's value, which a `_fold` may run across
+//     lines: a consumer deletes each one, and nothing stands in for it.
+//   - A line node — a header, a comment — spans its `_eol`. An
 //     indented line begins at its first character; the indentation is the
 //     parent's. A body is the exception the other way: its bytes are the
 //     body's, so the body node begins where its first line's indentation
 //     does, and inside it the same tokens apply.
 //
-// The scanner (common/scanner.h) supplies `_eol` and `_content_type_start`,
-// zero-width at the header line that names Content-Type, and for the file
+// The scanner (common/scanner.h) supplies `_eol`, `_content_type_start`,
+// zero-width at the header line that names Content-Type, and `_fold`, a line
+// break whose next line is indented and not blank; and for the file
 // dialect
 // `placeholder` — a whole `{{…}}`, decided by looking along the line for the
 // `}}` — the body opener a token cannot state without looking past itself:
@@ -150,20 +155,23 @@ const ci = (word) =>
  */
 const text = (except) => new RegExp(`[^\\s${except}]([^\\r\\n${except}]*[^\\s${except}])?`);
 
-/** A header line over the token that names it: the name, `:`, the value, the line's end, and its folds. */
+/**
+ * A header line over the token that names it: the name, `:`, the value, the
+ * line's end. The value may begin on the line after the colon: a header whose
+ * whole value is folded onto the next line still has one.
+ */
 const header = ($, name) =>
   seq(
     field("name", alias(name, $.header_name)),
     optional($._ws),
     ":",
     optional($._ws),
-    optional(field("value", $.value)),
+    optional(seq(optional($._fold), field("value", alias($._header_value, $.value)))),
     $._eol,
-    repeat(seq($._ws, $.fold)),
   );
 
-/** Pieces — text, placeholders, braces — with `_ws` between them; the node runs from the first to the last. */
-const pieces = ($, piece) => seq(piece, repeat(seq(optional($._ws), piece)));
+/** Pieces — text, placeholders, braces — with a `gap` between them; the node runs from the first to the last. */
+const pieces = ($, piece, gap = $._ws) => seq(piece, repeat(seq(optional(gap), piece)));
 
 /** @param {boolean} wire */
 module.exports = (wire) =>
@@ -175,7 +183,9 @@ module.exports = (wire) =>
     // From <dialect>/src/scanner.c (common/scanner.h). `_eol` is a newline,
     // or zero-width at end of file, with the whitespace before it;
     // `_content_type_start` is zero-width at a header line that names
-    // Content-Type. The rest exist in the file dialect alone — on the wire, braces are octets and a
+    // Content-Type; `_fold` is a line break inside a header's value, with the
+    // whitespace on both sides of it, where an indented line continues the
+    // value. The rest exist in the file dialect alone — on the wire, braces are octets and a
     // body is opaque: `placeholder` is a `{{` through the `}}` that closes it
     // on the same line with no brace between, one token, its inside the
     // expression grammar's; `_file_open` is the `<` or `<@name`
@@ -184,8 +194,8 @@ module.exports = (wire) =>
     // follows; `_body_blank` is the blank lines inside a body that a body
     // line follows. Each is a decision that needs to look past the token.
     externals: wire
-      ? ($) => [$._eol, $._content_type_start]
-      : ($) => [$._eol, $._content_type_start, $.placeholder, $._file_open, $._directive_start, $._body_blank],
+      ? ($) => [$._eol, $._content_type_start, $._fold]
+      : ($) => [$._eol, $._content_type_start, $._fold, $.placeholder, $._file_open, $._directive_start, $._body_blank],
 
     // No conflicts: wherever a space could belong to two rules, a closer
     // owns it, and the scanner decides by looking past it.
@@ -351,12 +361,6 @@ module.exports = (wire) =>
       // colon — a token cannot say "and nothing more of the name follows".
       _content_type: ($) => field("content_type", alias($._content_type_header, $.header)),
       _content_type_header: ($) => seq($._content_type_start, header($, $._name_text)),
-      // An indented line after a header continues its value — the obs-fold.
-      // The value is the header's; the line break and the indentation are
-      // layout, and a consumer joins the two values with one space. Its
-      // colons are its own (`00:00:00 GMT`): indented, a line can never be
-      // a header, since `_name_text` demands a non-space first character.
-      fold: ($) => seq(field("value", $.value), $._eol),
       // The text of an unindented line in the header block, up to a colon or
       // the line's end: a header's name, or the whole of a `plain` line.
       // Outranks a target so that, once in the header block, every line is a
@@ -367,8 +371,8 @@ module.exports = (wire) =>
       // An unindented line in the header block with no colon — stray text.
       // The engine keeps it as `plain`; so do we, so it is not an error. An
       // indented line is never `plain`: it continues the target
-      // (`continuation`) or the header above it (`fold`), and where there is
-      // nothing to continue it is an error.
+      // (`continuation`) or the value of the header above it, and where
+      // there is nothing to continue it is an error.
       plain: ($) => seq($._name_text, $._eol),
 
       // MARK: Responses
@@ -471,12 +475,22 @@ module.exports = (wire) =>
 
       // MARK: Values and placeholders
 
-      value: wire ? ($) => $.value_text : ($) => pieces($, choice($.value_text, $.placeholder, $._braces)),
+      // A header's value: its pieces, on its own line and on every indented
+      // line after it. Each indented line continues the value where the line
+      // before it stopped — the line break and the whitespace on both sides
+      // of it are `_fold`, hidden, and nothing stands in for them. Its colons
+      // are its own (`00:00:00`): indented, a line can never be a header,
+      // since `_name_text` demands a non-space first character.
+      _header_value: wire
+        ? ($) => seq($.value_text, repeat(seq($._fold, $.value_text)))
+        : ($) => pieces($, choice($.value_text, $.placeholder, $._braces), choice($._ws, $._fold)),
       value_text: wire ? () => text("") : () => text("{}"),
 
       ...(wire
         ? {}
         : {
+            // A declaration's value or a directive's argument: one line.
+            value: ($) => pieces($, choice($.value_text, $.placeholder, $._braces)),
             // A `placeholder` is the scanner's, whole: `{{host}}`,
             // `{{ login.response.body.$.token }}`, `{{$randomInt 1 100}}`. A
             // `{{` is one only when `}}` closes it on the line with no brace

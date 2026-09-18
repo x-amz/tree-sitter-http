@@ -148,10 +148,8 @@ a=1
       (header
         (header_name)
         (value
-          (value_text))
-        (fold
-          (value
-            (value_text))))
+          (value_text)
+          (value_text)))
       (plain)
       (file_body
         (path))))

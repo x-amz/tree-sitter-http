@@ -8,6 +8,12 @@
 // `  \n`, and a `_ws` written there was lexed as a `_blank` the rule could
 // not take.
 //
+// `_fold`: the line break inside a header's value — the spaces and tabs
+// before it, the break, and the indentation after it — only when the
+// indented line is not blank. A header's value continues on every such
+// line, and whether a break is `_fold` or the header's `_eol` is decided by
+// the line after it, which a grammar rule cannot look at without taking.
+//
 // `_content_type_start`: zero-width at a header line whose name is
 // Content-Type, in any case, with nothing more to the name: spaces or tabs
 // and a `:` follow it. The grammar's name token cannot say "and then a
@@ -44,7 +50,8 @@
 // begin at the margin.
 //
 // The file dialect alone has placeholders and file bodies; the wire dialect
-// defines HAS_PLACEHOLDERS 0 and lists `_eol` and `_content_type_start`.
+// defines HAS_PLACEHOLDERS 0 and lists `_eol`, `_content_type_start` and
+// `_fold`.
 //
 // Shared by both dialects. External scanner symbols carry the language name,
 // so each `<dialect>/src/scanner.c` defines SCANNER(fn) to prefix its own
@@ -52,7 +59,7 @@
 
 #include "tree_sitter/parser.h"
 
-enum TokenType { EOL, CONTENT_TYPE_START, PLACEHOLDER, FILE_OPEN, DIRECTIVE_START, BODY_BLANK };
+enum TokenType { EOL, CONTENT_TYPE_START, FOLD, PLACEHOLDER, FILE_OPEN, DIRECTIVE_START, BODY_BLANK };
 
 void *SCANNER(create)(void) { return NULL; }
 void SCANNER(destroy)(void *payload) {}
@@ -229,22 +236,36 @@ bool SCANNER(scan)(void *payload, TSLexer *lexer, const bool *valid_symbols) {
     return false;
   }
 #endif
-  if (!valid_symbols[EOL]) return false;
+  if (!valid_symbols[EOL] && !valid_symbols[FOLD]) return false;
   while (lexer->lookahead == ' ' || lexer->lookahead == '\t') lexer->advance(lexer, false);
   if (lexer->eof(lexer)) {
     lexer->result_symbol = EOL;
-    return true;
+    return valid_symbols[EOL];
   }
   if (lexer->lookahead == '\r') {
     lexer->advance(lexer, false);
     if (lexer->lookahead == '\n') lexer->advance(lexer, false);
-    lexer->result_symbol = EOL;
-    return true;
-  }
-  if (lexer->lookahead == '\n') {
+  } else if (lexer->lookahead == '\n') {
     lexer->advance(lexer, false);
-    lexer->result_symbol = EOL;
-    return true;
+  } else {
+    return false;
   }
-  return false;
+  // Inside a header's value, an indented line that is not blank continues
+  // it. The end is marked at the break first, so a look that finds no such
+  // line leaves the `_eol` behind it.
+  if (valid_symbols[FOLD]) {
+    lexer->mark_end(lexer);
+    bool indented = false;
+    while (lexer->lookahead == ' ' || lexer->lookahead == '\t') {
+      lexer->advance(lexer, false);
+      indented = true;
+    }
+    if (indented && !lexer->eof(lexer) && lexer->lookahead != '\r' && lexer->lookahead != '\n') {
+      lexer->mark_end(lexer);
+      lexer->result_symbol = FOLD;
+      return true;
+    }
+  }
+  lexer->result_symbol = EOL;
+  return valid_symbols[EOL];
 }

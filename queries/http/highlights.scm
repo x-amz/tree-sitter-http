@@ -14,7 +14,6 @@
   name: (header_name) @property
   ":" @punctuation.delimiter)
 (header value: (value) @string)
-(fold value: (value) @string)
 
 ; {{placeholders}} — one token here, a range another grammar paints:
 ; injections.scm hands each to the expression grammar.

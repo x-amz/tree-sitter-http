@@ -13,7 +13,6 @@
   name: (header_name) @property
   ":" @punctuation.delimiter)
 (header value: (value) @string)
-(fold value: (value) @string)
 
 ; Responses. A status code's class is its first digit, and each class is
 ; its own capture so a theme can colour success, redirect, client error and

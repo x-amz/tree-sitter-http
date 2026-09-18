@@ -13,6 +13,8 @@
 ; "declares none" is `!content_type` — on a named node: a wildcard does not
 ; honour a negated field — and no two patterns here claim one body. A media type is case-insensitive; the CLI, web-tree-sitter, and
 ; SwiftTreeSitter disagree on regex flags, so the patterns spell it out.
+; A header's value runs on across its indented lines, so the whitespace
+; after a media type may hold a line break.
 ; A `file_body` names a file, not its bytes, and is never injected; and
 ; where the file format differs from the wire the sniff says so: a `{{`
 ; opens a placeholder, not JSON, and `<@` is not a tag.
@@ -24,28 +26,28 @@
 ((_
    content_type: (header value: (value) @_type)
    body: (body) @injection.content)
- (#match? @_type "^[Mm][Ee][Ss][Ss][Aa][Gg][Ee]/[Hh][Tt][Tt][Pp][ \\t]*(;|$)")
+ (#match? @_type "^[Mm][Ee][Ss][Ss][Aa][Gg][Ee]/[Hh][Tt][Tt][Pp][ \\t\\r\\n]*(;|$)")
  (#set! injection.language "http_message"))
 
 ; application/json, text/json, and any +json structured-syntax suffix.
 ((_
    content_type: (header value: (value) @_type)
    body: (body) @injection.content)
- (#match? @_type "^[^ \\t/;]+/([^ \\t;]*[+])?[Jj][Ss][Oo][Nn][ \\t]*(;|$)")
+ (#match? @_type "^[^ \\t/;]+/([^ \\t;]*[+])?[Jj][Ss][Oo][Nn][ \\t\\r\\n]*(;|$)")
  (#set! injection.language "json"))
 
 ; text/html and application/xhtml+xml.
 ((_
    content_type: (header value: (value) @_type)
    body: (body) @injection.content)
- (#match? @_type "^[^ \\t/;]+/(([^ \\t;]*[+])?[Hh][Tt][Mm][Ll]|[Xx][Hh][Tt][Mm][Ll][+][Xx][Mm][Ll])[ \\t]*(;|$)")
+ (#match? @_type "^[^ \\t/;]+/(([^ \\t;]*[+])?[Hh][Tt][Mm][Ll]|[Xx][Hh][Tt][Mm][Ll][+][Xx][Mm][Ll])[ \\t\\r\\n]*(;|$)")
  (#set! injection.language "html"))
 
 ; application/xml, text/xml, image/svg+xml, and any +xml suffix but xhtml's.
 ((_
    content_type: (header value: (value) @_type)
    body: (body) @injection.content)
- (#match? @_type "^[^ \\t/;]+/([^ \\t;]*[+])?[Xx][Mm][Ll][ \\t]*(;|$)")
+ (#match? @_type "^[^ \\t/;]+/([^ \\t;]*[+])?[Xx][Mm][Ll][ \\t\\r\\n]*(;|$)")
  (#not-match? @_type "^[^ \\t/;]+/[Xx][Hh][Tt][Mm][Ll][+]")
  (#set! injection.language "xml"))
 
@@ -53,7 +55,7 @@
 ((_
    content_type: (header value: (value) @_type)
    body: (body) @injection.content)
- (#match? @_type "^[^ \\t/;]+/[Xx]-[Ww][Ww][Ww]-[Ff][Oo][Rr][Mm]-[Uu][Rr][Ll][Ee][Nn][Cc][Oo][Dd][Ee][Dd][ \\t]*(;|$)")
+ (#match? @_type "^[^ \\t/;]+/[Xx]-[Ww][Ww][Ww]-[Ff][Oo][Rr][Mm]-[Uu][Rr][Ll][Ee][Nn][Cc][Oo][Dd][Ee][Dd][ \\t\\r\\n]*(;|$)")
  (#set! injection.language "form_urlencoded"))
 
 ; MARK: What the first line reveals, where nothing was declared

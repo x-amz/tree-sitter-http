@@ -244,7 +244,7 @@ X-C: 3
         (value_text)))))
 
 ==================
-An indented line after a header folds into its value, colons and all
+An indented line after a header continues its value, colons and all
 ==================
 GET https://example.com/x
 Date: Mon, 01 Jan 2026
@@ -264,18 +264,13 @@ User-Agent: foo
     (header
       (header_name)
       (value
-        (value_text))
-      (fold
-        (value
-          (value_text)))
-      (fold
-        (value
-          (value_text))))
+        (value_text)
+        (value_text)
+        (value_text)))
     (header
       (header_name)
-      (fold
-        (value
-          (placeholder))))
+      (value
+        (placeholder)))
     (header
       (header_name)
       (value
