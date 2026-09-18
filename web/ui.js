@@ -743,8 +743,8 @@ const ancestry = (node) => {
 const injectionAt = (entry, at) =>
   entry.injections.filter((one) => one.start <= at && at < one.end).at(-1) ?? null;
 
-/** A range another grammar answered for and kept: not opaque, not tried and declined. */
-const kept = (one) => one.resolved && !one.declined;
+/** A range another grammar answered for: not opaque. */
+const kept = (one) => one.resolved;
 
 /** The innermost range another grammar answered for that holds the caret, or null. */
 const handedAt = (entry, at) =>
@@ -1438,11 +1438,9 @@ const RULES = cssRules(CSS);
 function capInject(entry) {
   const records = entry.injections.filter((one) => one.depth === 0);
   const opaque = records.filter((one) => !one.resolved).length;
-  const declined = records.filter((one) => one.declined).length;
   return html`${records.length
     ? html`<b>${plural(records.length, "range")} requested another grammar.</b>${opaque
-      ? html` <span class="warn">${opaque} unresolved.</span>` : ""}${declined
-      ? html` ${declined} tried and declined.` : ""}`
+      ? html` <span class="warn">${opaque} unresolved.</span>` : ""}`
     : html`<b>No range went to another grammar.</b>`}`;
 }
 
@@ -1462,7 +1460,6 @@ function seeInject(entry) {
     <h3>inside the range</h3>
     ${entry.injections.some(kept) ? box("inject-chain", chainReport(entry))
       : html`<p>${!entry.injections.length ? "No grammar handoff in this text."
-        : entry.injections.every((one) => one.declined) ? "Every range was tried as its own grammar and declined; nothing was handed on."
         : "No loaded grammar can read these ranges."}</p>`}`;
 }
 
@@ -1477,10 +1474,6 @@ function injectLead(entry) {
     records.some(kept) ? "the first range below" : null);
   if (!here.resolved) return facts(html`→ <b>${here.language}</b> ${span(here.start, here.end)}`,
     html`injections #${here.patternIndex}`, html`<span class="warn">no grammar, opaque</span>`);
-  if (here.declined) return facts(html`→ <b>${here.language}</b> ${span(here.start, here.end)}`,
-    html`injections #${here.patternIndex}`,
-    html`tried and declined: ${plural(here.errors, "error")}, so the range stays as it is`,
-    goIn(entry, here));
   // The route down to the range: its ancestors, innermost last. Ranges from
   // one grammar can sit inside one another — a placeholder in a body — and
   // those are siblings, not a route: the body's grammar read the placeholder
@@ -1589,8 +1582,8 @@ function chainFor(level, rel, index, range) {
   const inject = !level.injectionsQuery
     ? html`${name} has no injection query, so nothing goes further`
     : child
-      ? html`${child.tentative ? "tries" : "hands"} ${child.start}–${child.end} ${child.tentative ? "as" : "to"} <b>${child.language}</b> by pattern ${child.patternIndex}${
-          !child.resolved ? " — opaque: no grammar answers" : child.declined ? ` — declined: ${plural(child.errors, "error")}` : ""}`
+      ? html`hands ${child.start}–${child.end} to <b>${child.language}</b> by pattern ${child.patternIndex}${
+          !child.resolved ? " — opaque: no grammar answers" : ""}`
       : "hands nothing on here";
 
   // This describes the whole range, not the narrow stage-name column.

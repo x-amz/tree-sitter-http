@@ -2,8 +2,8 @@
 // @ts-check
 
 // application/x-www-form-urlencoded: `key=value` pairs joined by `&`. The
-// language of a `form_body` in the file dialect, and of a message that
-// declares the type on the wire. A body language, not a dialect: it hosts
+// language of a body that opens with `key=`, or whose message declares the
+// type, in either dialect. A body language, not a dialect: it hosts
 // nothing, shares no scanner, and has no messages to read.
 //
 // Whitespace between pairs is trivia, so the multi-line form the .http

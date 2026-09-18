@@ -36,7 +36,7 @@ GET {{host}}/done
       (target
         (placeholder)
         (url_text))
-      (json_body)))
+      (body)))
   (region
     (separator)
     (request
@@ -83,7 +83,7 @@ X: y
       (header_name)
       (value
         (value_text)))
-    (json_body)))
+    (body)))
 
 ==================
 Two hashes is a comment, three is a separator
@@ -168,15 +168,7 @@ a=1
       (version)
       (status_code)
       (reason_phrase)
-      (form_body
-        (pair
-          (key)
-          (value
-            (value_text)))
-        (pair
-          (key)
-          (value
-            (value_text)))))))
+      (body))))
 
 ================================================================================
 A comment is a directive only when @ opens an identifier the line can carry

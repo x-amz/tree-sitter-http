@@ -60,7 +60,7 @@ PROPFIND https://example.com/d
       (method)
       (target
         (url_text))
-      (xml_body))))
+      (body))))
 
 ==================
 A bare word is a method with no target, and an error
@@ -324,3 +324,31 @@ HTTP/1.1 200
   (response
     (version)
     (status_code)))
+
+==================
+A message holds its Content-Type header in a field, in any case; a longer name is not it
+==================
+POST https://example.com/a
+content-TYPE : text/plain
+Content-Type-Options: nosniff
+Content-Type
+
+hi
+
+---
+
+(document
+  (request
+    method: (method)
+    target: (target
+      (url_text))
+    content_type: (header
+      name: (header_name)
+      value: (value
+        (value_text)))
+    (header
+      name: (header_name)
+      value: (value
+        (value_text)))
+    (plain)
+    body: (body)))

@@ -38,12 +38,14 @@ public enum TreeSitterHttp {
         name: "http_message", language: tree_sitter_http_message(),
         queries: .module, directory: "queries/http_message")
 
-    /// tree-sitter-json, the language of a `json_body`.
+    /// tree-sitter-json, the language of a body opening with `{` or `[`, or
+    /// declared a JSON media type.
     public static let json = Grammar(
         name: "json", language: tree_sitter_json(),
         queries: .dependency("TreeSitterJSON_TreeSitterJSON"), directory: "queries")
 
-    /// tree-sitter-xml, the language of an `xml_body`.
+    /// tree-sitter-xml, the language of a body opening with a tag, or declared
+    /// an XML media type.
     public static let xml = Grammar(
         name: "xml", language: tree_sitter_xml(),
         queries: .dependency("TreeSitterXML_TreeSitterXML"), directory: "xml")
@@ -58,7 +60,7 @@ public enum TreeSitterHttp {
         queries: .dependency("TreeSitterHTML_TreeSitterHTML"), directory: "queries", injections: false)
 
     /// This repository's own body language: `application/x-www-form-urlencoded`,
-    /// the language of a `form_body` and of a message that declares the type.
+    /// the language of a body opening with `key=`, or declared the type.
     public static let formUrlencoded = Grammar(
         name: "form_urlencoded", language: tree_sitter_form_urlencoded(),
         queries: .module, directory: "queries/form_urlencoded")

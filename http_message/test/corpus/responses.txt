@@ -89,3 +89,29 @@ Host: example.com
       (value
         (value_text)))
     (body)))
+
+==================
+A message holds its Content-Type header in a field, in any case; a longer name is not it
+==================
+HTTP/1.1 200 OK
+CONTENT-type: text/plain
+Content-Type-Options: nosniff
+
+hi
+
+---
+
+(document
+  (response
+    version: (version)
+    status: (status_code)
+    reason: (reason_phrase)
+    content_type: (header
+      name: (header_name)
+      value: (value
+        (value_text)))
+    (header
+      name: (header_name)
+      value: (value
+        (value_text)))
+    body: (body)))

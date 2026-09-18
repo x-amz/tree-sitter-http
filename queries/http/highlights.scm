@@ -57,10 +57,6 @@
 
 ; Bodies
 (file_body path: (path) @string.special)
-(pair key: (key) @property)
-(pair value: (value) @string)
-(pair "=" @punctuation.delimiter)
-(form_body "&" @punctuation.delimiter)
 
 ; Text the parser could not make sense of
 (ERROR) @error

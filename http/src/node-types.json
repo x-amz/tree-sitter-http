@@ -1,13 +1,18 @@
 [
   {
-    "type": "&",
-    "named": false,
-    "fields": {}
-  },
-  {
-    "type": "=",
-    "named": false,
-    "fields": {}
+    "type": "body",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "placeholder",
+          "named": true
+        }
+      ]
+    }
   },
   {
     "type": "comment",
@@ -164,25 +169,6 @@
     }
   },
   {
-    "type": "form_body",
-    "named": true,
-    "fields": {},
-    "children": {
-      "multiple": true,
-      "required": true,
-      "types": [
-        {
-          "type": "pair",
-          "named": true
-        },
-        {
-          "type": "placeholder",
-          "named": true
-        }
-      ]
-    }
-  },
-  {
     "type": "header",
     "named": true,
     "fields": {
@@ -219,47 +205,6 @@
     }
   },
   {
-    "type": "json_body",
-    "named": true,
-    "fields": {},
-    "children": {
-      "multiple": true,
-      "required": false,
-      "types": [
-        {
-          "type": "placeholder",
-          "named": true
-        }
-      ]
-    }
-  },
-  {
-    "type": "pair",
-    "named": true,
-    "fields": {
-      "key": {
-        "multiple": false,
-        "required": true,
-        "types": [
-          {
-            "type": "key",
-            "named": true
-          }
-        ]
-      },
-      "value": {
-        "multiple": false,
-        "required": false,
-        "types": [
-          {
-            "type": "value",
-            "named": true
-          }
-        ]
-      }
-    }
-  },
-  {
     "type": "path",
     "named": true,
     "fields": {}
@@ -268,21 +213,6 @@
     "type": "plain",
     "named": true,
     "fields": {}
-  },
-  {
-    "type": "raw_body",
-    "named": true,
-    "fields": {},
-    "children": {
-      "multiple": true,
-      "required": false,
-      "types": [
-        {
-          "type": "placeholder",
-          "named": true
-        }
-      ]
-    }
   },
   {
     "type": "reason_phrase",
@@ -333,23 +263,21 @@
         "required": false,
         "types": [
           {
+            "type": "body",
+            "named": true
+          },
+          {
             "type": "file_body",
             "named": true
-          },
+          }
+        ]
+      },
+      "content_type": {
+        "multiple": true,
+        "required": false,
+        "types": [
           {
-            "type": "form_body",
-            "named": true
-          },
-          {
-            "type": "json_body",
-            "named": true
-          },
-          {
-            "type": "raw_body",
-            "named": true
-          },
-          {
-            "type": "xml_body",
+            "type": "header",
             "named": true
           }
         ]
@@ -417,23 +345,21 @@
         "required": false,
         "types": [
           {
+            "type": "body",
+            "named": true
+          },
+          {
             "type": "file_body",
             "named": true
-          },
+          }
+        ]
+      },
+      "content_type": {
+        "multiple": true,
+        "required": false,
+        "types": [
           {
-            "type": "form_body",
-            "named": true
-          },
-          {
-            "type": "json_body",
-            "named": true
-          },
-          {
-            "type": "raw_body",
-            "named": true
-          },
-          {
-            "type": "xml_body",
+            "type": "header",
             "named": true
           }
         ]
@@ -548,25 +474,6 @@
     }
   },
   {
-    "type": "xml_body",
-    "named": true,
-    "fields": {},
-    "children": {
-      "multiple": true,
-      "required": false,
-      "types": [
-        {
-          "type": "placeholder",
-          "named": true
-        }
-      ]
-    }
-  },
-  {
-    "type": "&",
-    "named": false
-  },
-  {
     "type": ":",
     "named": false
   },
@@ -584,10 +491,6 @@
   },
   {
     "type": "identifier",
-    "named": true
-  },
-  {
-    "type": "key",
     "named": true
   },
   {

@@ -1,5 +1,5 @@
 ==================
-JSON body
+A body is lines of text: JSON
 ==================
 POST https://example.com/anything
 Content-Type: application/json
@@ -20,42 +20,10 @@ Content-Type: application/json
       (header_name)
       (value
         (value_text)))
-    (json_body)))
+    (body)))
 
 ==================
-One-line JSON is JSON
-==================
-POST https://example.com/anything
-
-{"a": 1}
-
----
-
-(document
-  (request
-    (method)
-    (target
-      (url_text))
-    (json_body)))
-
-==================
-An array root is JSON
-==================
-POST https://example.com/anything
-
-[1, 2]
-
----
-
-(document
-  (request
-    (method)
-    (target
-      (url_text))
-    (json_body)))
-
-==================
-An array of objects is JSON
+A body may open with a bracket
 ==================
 POST https://example.com/anything
 
@@ -68,10 +36,10 @@ POST https://example.com/anything
     (method)
     (target
       (url_text))
-    (json_body)))
+    (body)))
 
 ==================
-A placeholder-only body is raw, and the placeholder is read
+A placeholder-only body, and the placeholder is read
 ==================
 POST https://example.com/anything
 
@@ -84,11 +52,11 @@ POST https://example.com/anything
     (method)
     (target
       (url_text))
-    (raw_body
+    (body
       (placeholder))))
 
 ==================
-XML body
+A body is lines of text: XML
 ==================
 POST https://example.com/anything
 Content-Type: application/xml
@@ -106,7 +74,7 @@ Content-Type: application/xml
       (header_name)
       (value
         (value_text)))
-    (xml_body)))
+    (body)))
 
 ==================
 File body
@@ -126,7 +94,7 @@ POST https://example.com/anything
       (path))))
 
 ==================
-Raw body with comment-looking lines
+A body with comment-looking lines
 ==================
 POST https://example.com/anything
 
@@ -141,7 +109,7 @@ plain text
     (method)
     (target
       (url_text))
-    (raw_body)))
+    (body)))
 
 ==================
 Body ends at a separator
@@ -159,7 +127,7 @@ GET https://example.com/b
     (method)
     (target
       (url_text))
-    (raw_body))
+    (body))
   (region
     (separator)
     (request
@@ -182,7 +150,7 @@ value
     (method)
     (target
       (url_text))
-    (raw_body)))
+    (body)))
 
 ==================
 A bodiless method has no body: what follows its blank line is the next message
@@ -212,7 +180,7 @@ POST https://example.com/a
     (method)
     (target
       (url_text))
-    (json_body)))
+    (body)))
 
 ==================
 A request body ends at the blank lines before a separator, and at the end of the file
@@ -237,14 +205,14 @@ last
     (method)
     (target
       (url_text))
-    (raw_body))
+    (body))
   (region
     (separator)
     (request
       (method)
       (target
         (url_text))
-      (raw_body))))
+      (body))))
 
 ==================
 A request body ends at the blank lines before a status line: that is the response
@@ -272,7 +240,7 @@ HTTP/1.1 201 Created
       (header_name)
       (value
         (value_text)))
-    (raw_body))
+    (body))
   (response
     (version)
     (status_code)
@@ -305,7 +273,7 @@ two
     (method)
     (target
       (url_text))
-    (raw_body)))
+    (body)))
 
 ==================
 A response body keeps its blank lines
@@ -335,7 +303,7 @@ Content-Type: application/json
       (header_name)
       (value
         (value_text)))
-    (json_body))
+    (body))
   (response
     (version)
     (status_code)
@@ -344,7 +312,7 @@ Content-Type: application/json
       (header_name)
       (value
         (value_text)))
-    (raw_body)))
+    (body)))
 
 ==================
 A status line inside a body is body text
@@ -367,7 +335,7 @@ Date: Sat, 30 Aug 2026 00:00:00 GMT
       (header_name)
       (value
         (value_text)))
-    (raw_body)))
+    (body)))
 
 ==================
 A line that only looks like a status line stays in the body
@@ -385,7 +353,7 @@ HTTP/1.1 20 things
     (method)
     (target
       (url_text))
-    (raw_body)))
+    (body)))
 
 ==================
 A body never opens with a status line: it is the response
@@ -407,7 +375,7 @@ HTTP/1.1 200 OK
     (version)
     (status_code)
     (reason_phrase)
-    (json_body)))
+    (body)))
 
 ==================
 Nor with a line that only looks like one
@@ -428,7 +396,7 @@ HTTP/1.1 is a protocol
     (reason_phrase)))
 
 ==================
-Placeholders inside a JSON body, in string and in value position
+Placeholders inside a body, in a string and in value position
 ==================
 POST https://example.com/anything
 
@@ -441,12 +409,12 @@ POST https://example.com/anything
     (method)
     (target
       (url_text))
-    (json_body
+    (body
       (placeholder)
       (placeholder))))
 
 ==================
-A pretty-printed JSON body opens with a lone brace
+A body may open with a lone brace
 ==================
 POST https://example.com/anything
 
@@ -462,12 +430,12 @@ POST https://example.com/anything
     (method)
     (target
       (url_text))
-    (json_body
+    (body
       (placeholder)
       (placeholder))))
 
 ==================
-A placeholder inside an XML body
+A placeholder between tags
 ==================
 POST https://example.com/anything
 
@@ -480,7 +448,7 @@ POST https://example.com/anything
     (method)
     (target
       (url_text))
-    (xml_body
+    (body
       (placeholder))))
 
 ==================
@@ -500,7 +468,7 @@ POST https://example.com/anything
     (method)
     (target
       (url_text))
-    (raw_body)))
+    (body)))
 
 ==================
 A body line that opens with a placeholder, a brace, or an indented placeholder
@@ -520,7 +488,7 @@ first {{a}} line
     (method)
     (target
       (url_text))
-    (raw_body
+    (body
       (placeholder)
       (placeholder)
       (placeholder))))
@@ -566,7 +534,7 @@ GET https://example.com/next
     (version)
     (status_code)
     (reason_phrase)
-    (json_body
+    (body
       (placeholder)))
   (region
     (separator)
@@ -591,12 +559,12 @@ POST https://example.com/anything
     (method)
     (target
       (url_text))
-    (json_body
+    (body
       (placeholder)
       (placeholder))))
 
 ==================
-Form body, typed by its first pair
+A body is lines of text: form pairs, a line breaking before an &
 ==================
 POST https://example.com/anything
 
@@ -610,182 +578,11 @@ name=foo&token={{token}}
     (method)
     (target
       (url_text))
-    (form_body
-      (pair
-        (key)
-        (value
-          (value_text)))
-      (pair
-        (key)
-        (value
-          (placeholder)))
-      (pair
-        (key)
-        (value
-          (value_text))))))
-
-==================
-A form body is pairs joined by &, a line may break before an &, and a value's bytes are its own
-==================
-POST https://example.com/anything
-
-q=hello world&x=y=2
-  &token=a=b=c
-&flag&&
-
----
-
-(document
-  (request
-    (method)
-    (target
-      (url_text))
-    (form_body
-      (pair
-        (key)
-        (value
-          (value_text)))
-      (pair
-        (key)
-        (value
-          (value_text)))
-      (pair
-        (key)
-        (value
-          (value_text)))
-      (pair
-        (key)))))
-
-==================
-A line in a form body that begins with no & is text, not pairs
-==================
-POST https://example.com/anything
-
-a=1
-b=2
-  {{c}}
-
----
-
-(document
-  (request
-    (method)
-    (target
-      (url_text))
-    (form_body
-      (pair
-        (key)
-        (value
-          (value_text)))
+    (body
       (placeholder))))
 
 ==================
-A space after = is prose, and raw, like a space around it
-==================
-POST https://example.com/anything
-
-a= b
-
----
-
-(document
-  (request
-    (method)
-    (target
-      (url_text))
-    (raw_body)))
-
-==================
-A space before an & on a pair line is not the wire format
-:error
-==================
-POST https://example.com/anything
-
-a=1 &b=2
-
----
-
-==================
-Nothing a form body contains ends it: a status line, a method line and a hash line inside it are text
-==================
-POST https://example.com/anything
-
-a=1
-HTTP/1.1 200 OK
-GET https://example.com/b
-# note
-
----
-
-(document
-  (request
-    (method)
-    (target
-      (url_text))
-    (form_body
-      (pair
-        (key)
-        (value
-          (value_text))))))
-
-==================
-An = with spaces around it is prose, and raw
-==================
-POST https://example.com/anything
-
-a = b
-
----
-
-(document
-  (request
-    (method)
-    (target
-      (url_text))
-    (raw_body)))
-
-==================
-A form body in a response keeps its blank lines, and one that is a key with no value
-==================
-HTTP/1.1 200 OK
-
-ok=
-
-&more=1
-
-###
-POST https://example.com/anything
-
-flag=1
-
----
-
-(document
-  (response
-    (version)
-    (status_code)
-    (reason_phrase)
-    (form_body
-      (pair
-        (key))
-      (pair
-        (key)
-        (value
-          (value_text)))))
-  (region
-    (separator)
-    (request
-      (method)
-      (target
-        (url_text))
-      (form_body
-        (pair
-          (key)
-          (value
-            (value_text)))))))
-
-==================
-A brace right after < is not an XML opener
+A placeholder right after <
 ==================
 POST https://example.com/anything
 
@@ -798,11 +595,11 @@ POST https://example.com/anything
     (method)
     (target
       (url_text))
-    (raw_body
+    (body
       (placeholder))))
 
 ==================
-A body's first line is typed by its first token after the indentation
+An indented first line opens a body like any other
 ==================
 POST https://example.com/a
 
@@ -827,25 +624,21 @@ POST https://example.com/d
     (method)
     (target
       (url_text))
-    (json_body))
+    (body))
   (region
     (separator)
     (request
       (method)
       (target
         (url_text))
-      (xml_body)))
+      (body)))
   (region
     (separator)
     (request
       (method)
       (target
         (url_text))
-      (form_body
-        (pair
-          (key)
-          (value
-            (value_text))))))
+      (body)))
   (region
     (separator)
     (request
@@ -856,7 +649,7 @@ POST https://example.com/d
         (path)))))
 
 ==================
-A file opener is a < that whitespace and a path follow; alone, < and <@name are raw
+A file opener is a < that whitespace and a path follow; alone, < and <@name are body text
 ==================
 POST https://example.com/a
 
@@ -877,14 +670,14 @@ POST https://example.com/c
     (method)
     (target
       (url_text))
-    (raw_body))
+    (body))
   (region
     (separator)
     (request
       (method)
       (target
         (url_text))
-      (raw_body)))
+      (body)))
   (region
     (separator)
     (request
@@ -911,30 +704,5 @@ first
     (method)
     (target
       (url_text))
-    (raw_body)))
+    (body)))
 
-==================
-A form value is pieces, with the spaces between them its own bytes
-==================
-POST https://example.com/a
-
-q=hello {{x}} world&r={{y}}
-
----
-
-(document
-  (request
-    (method)
-    (target
-      (url_text))
-    (form_body
-      (pair
-        (key)
-        (value
-          (value_text)
-          (placeholder)
-          (value_text)))
-      (pair
-        (key)
-        (value
-          (placeholder))))))

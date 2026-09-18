@@ -17,7 +17,7 @@ hello
       (header_name)
       (value
         (value_text)))
-    (raw_body)))
+    (body)))
 
 ==================
 Response after a bodiless request
@@ -69,7 +69,7 @@ Content-Type: application/json
       (header_name)
       (value
         (value_text)))
-    (json_body))
+    (body))
   (response
     (version)
     (status_code)
@@ -78,7 +78,7 @@ Content-Type: application/json
       (header_name)
       (value
         (value_text)))
-    (json_body)))
+    (body)))
 
 ==================
 Status without reason, HTTP/2
@@ -152,7 +152,7 @@ HTTP/1.1 201 Created
       (header_name)
       (value
         (value_text)))
-    (raw_body))
+    (body))
   (response
     (version)
     (status_code)

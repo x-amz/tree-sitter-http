@@ -4,13 +4,13 @@
 
 @host = api.example.com
 
-### Typed by its first line, whatever the header says
+### Declared: the Content-Type is a directive, the text not consulted
 # @name create
 POST https://{{host}}/items
-Content-Type: application/xml
+Content-Type: application/json
 X-Request-Id: {{$guid}}
 
-{"looks": "like json", "so": "it is json"}
+{"declared": "json", "so": "it is json"}
 
 HTTP/1.1 201 Created
 Content-Type: application/json
@@ -22,14 +22,14 @@ Content-Type: application/json
   "from": "{{create.response.body.$.id}}"
 }
 
-### Typed by the first line, placeholders left to the file dialect
+### Undeclared: JSON by its first line, placeholders left to the file dialect
 POST https://{{host}}/items
 
 {"name": "{{name}}", "tags": [{{tag}}, "fixed"]}
 
 HTTP/1.1 304 Not Modified
 
-### An xml opener with nothing to say it is HTML
+### A tag alone would be XML; this response declares HTML
 GET https://{{host}}/page
 
 HTTP/1.1 404 Not Found
@@ -37,7 +37,7 @@ Content-Type: text/html; charset=utf-8
 
 <p>gone</p>
 
-### HTML, revealed by its opener
+### Undeclared: HTML, revealed by its opener
 GET https://{{host}}/page
 
 HTTP/1.1 500 Internal Server Error
@@ -45,7 +45,7 @@ HTTP/1.1 500 Internal Server Error
 <!DOCTYPE html>
 <html lang="en"><body><h1>{{title}}</h1></body></html>
 
-### A form body, typed by its first pair
+### Undeclared: a form, by the key= its first line opens with
 POST https://{{host}}/login
 
 username={{user}}
