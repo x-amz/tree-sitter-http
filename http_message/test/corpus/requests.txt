@@ -34,6 +34,8 @@ https://example.com/anything
 
 ---
 
+
+
 ==================
 Any token word is a method
 ==================
@@ -55,6 +57,8 @@ Text after the target that is not a version is an error
 GET https://example.com/a extra words
 
 ---
+
+
 
 ==================
 Literal braces stay in the target
@@ -125,6 +129,8 @@ Accept: text/plain
 
 ---
 
+
+
 ==================
 Pipelined bodiless requests
 ==================
@@ -165,7 +171,7 @@ Accept: */*
         (value_text)))))
 
 ==================
-An indented line after a header folds into its value, colons and all
+An indented line after a header continues its value, colons and all
 ==================
 GET /a HTTP/1.1
 Expires: Sat,
@@ -183,10 +189,9 @@ Accept: */*
     (header
       (header_name)
       (value
-        (value_text))
-      (fold
-        (value
-          (value_text))))
+        (value_text)
+        (fold)
+        (value_text)))
     (header
       (header_name)
       (value

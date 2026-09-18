@@ -70,6 +70,8 @@ localhost
 
 ---
 
+
+
 ==================
 A target with a character a method cannot carry is an implied GET
 ==================
@@ -99,6 +101,8 @@ Text after the target that is not a version is an error
 GET https://example.com/a extra words
 
 ---
+
+
 
 ==================
 Headers and comments among them
@@ -165,6 +169,8 @@ Accept: text/plain
 
 ---
 
+
+
 ==================
 A fragment never reaches the wire, so an indented # line continues nothing
 :error
@@ -174,6 +180,8 @@ GET https://example.com/search
 Accept: text/plain
 
 ---
+
+
 
 ==================
 Two bodiless requests separated by a blank line
@@ -244,7 +252,7 @@ X-C: 3
         (value_text)))))
 
 ==================
-An indented line after a header folds into its value, colons and all
+An indented line after a header continues its value, colons and all
 ==================
 GET https://example.com/x
 Date: Mon, 01 Jan 2026
@@ -264,18 +272,16 @@ User-Agent: foo
     (header
       (header_name)
       (value
-        (value_text))
-      (fold
-        (value
-          (value_text)))
-      (fold
-        (value
-          (value_text))))
+        (value_text)
+        (fold)
+        (value_text)
+        (fold)
+        (value_text)))
     (header
       (header_name)
-      (fold
-        (value
-          (placeholder))))
+      (fold)
+      (value
+        (placeholder)))
     (header
       (header_name)
       (value
@@ -289,6 +295,8 @@ GET
 
 ---
 
+
+
 ==================
 An indented request line is an error
 :error
@@ -297,6 +305,8 @@ An indented request line is an error
 Accept: */*
 
 ---
+
+
 
 ==================
 Trailing whitespace after the version, a header value, and a status line

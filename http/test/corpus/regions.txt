@@ -111,6 +111,7 @@ Trailing whitespace on every kind of line is the line end's
 # @name login   
 POST {{host}}/a HTTP/1.1   
 X-A: b   
+X-B: c
   folded   
 this line has no colon   
 
@@ -148,10 +149,13 @@ a=1
       (header
         (header_name)
         (value
-          (value_text))
-        (fold
-          (value
-            (value_text))))
+          (value_text)))
+      (header
+        (header_name)
+        (value
+          (value_text)
+          (fold)
+          (value_text)))
       (plain)
       (file_body
         (path))))

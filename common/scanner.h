@@ -8,6 +8,22 @@
 // `  \n`, and a `_ws` written there was lexed as a `_blank` the rule could
 // not take.
 //
+// `fold`: a line break inside a header's value and the indentation of the
+// line after it, only when that line is indented and not blank. A header's
+// value continues on every such line, and whether a break is `fold` or the
+// header's `_eol` is decided by the line after it, which a grammar rule
+// cannot look at without taking. The token is exactly the bytes that are no
+// part of the value, so a consumer takes the value's text and cuts each
+// `fold` out of it.
+//
+// `_trail`, `_line_trail`: the spaces and tabs before a line's break inside
+// a header's value — `_trail` when the break is a `fold`, and they are the
+// value's; `_line_trail` when it is the header's `_eol`. Either ends where
+// the whitespace does, and which one it is takes the same look the fold
+// does, past the break; the grammar cannot tell them apart with one token,
+// since a value that goes on and a value that has ended both stand at
+// whitespace. After either, the break is read bare.
+//
 // `_content_type_start`: zero-width at a header line whose name is
 // Content-Type, in any case, with nothing more to the name: spaces or tabs
 // and a `:` follow it. The grammar's name token cannot say "and then a
@@ -44,7 +60,8 @@
 // begin at the margin.
 //
 // The file dialect alone has placeholders and file bodies; the wire dialect
-// defines HAS_PLACEHOLDERS 0 and lists `_eol` and `_content_type_start`.
+// defines HAS_PLACEHOLDERS 0 and lists `_eol`, `_content_type_start`,
+// `fold`, `_trail` and `_line_trail`.
 //
 // Shared by both dialects. External scanner symbols carry the language name,
 // so each `<dialect>/src/scanner.c` defines SCANNER(fn) to prefix its own
@@ -52,7 +69,7 @@
 
 #include "tree_sitter/parser.h"
 
-enum TokenType { EOL, CONTENT_TYPE_START, PLACEHOLDER, FILE_OPEN, DIRECTIVE_START, BODY_BLANK };
+enum TokenType { EOL, CONTENT_TYPE_START, FOLD, TRAIL, LINE_TRAIL, PLACEHOLDER, FILE_OPEN, DIRECTIVE_START, BODY_BLANK };
 
 void *SCANNER(create)(void) { return NULL; }
 void SCANNER(destroy)(void *payload) {}
@@ -229,22 +246,48 @@ bool SCANNER(scan)(void *payload, TSLexer *lexer, const bool *valid_symbols) {
     return false;
   }
 #endif
-  if (!valid_symbols[EOL]) return false;
-  while (lexer->lookahead == ' ' || lexer->lookahead == '\t') lexer->advance(lexer, false);
+  if (!valid_symbols[EOL] && !valid_symbols[FOLD] && !valid_symbols[TRAIL] && !valid_symbols[LINE_TRAIL]) return false;
+  bool trailing = false;
+  while (lexer->lookahead == ' ' || lexer->lookahead == '\t') {
+    lexer->advance(lexer, false);
+    trailing = true;
+  }
+  // Inside a header's value the whitespace before a break is its own token:
+  // the end is marked here, and the look past the break only names it.
+  bool trail = trailing && (valid_symbols[TRAIL] || valid_symbols[LINE_TRAIL]);
+  if (trail) lexer->mark_end(lexer);
   if (lexer->eof(lexer)) {
-    lexer->result_symbol = EOL;
-    return true;
+    lexer->result_symbol = trail ? LINE_TRAIL : EOL;
+    return valid_symbols[lexer->result_symbol];
   }
   if (lexer->lookahead == '\r') {
     lexer->advance(lexer, false);
     if (lexer->lookahead == '\n') lexer->advance(lexer, false);
-    lexer->result_symbol = EOL;
-    return true;
-  }
-  if (lexer->lookahead == '\n') {
+  } else if (lexer->lookahead == '\n') {
     lexer->advance(lexer, false);
-    lexer->result_symbol = EOL;
-    return true;
+  } else {
+    return false;
   }
-  return false;
+  // Inside a header's value, an indented line that is not blank continues
+  // it. The end is marked at the break first, so a look that finds no such
+  // line leaves the `_eol` behind it.
+  bool folds = false;
+  if (trail || valid_symbols[FOLD]) {
+    if (!trail) lexer->mark_end(lexer);
+    bool indented = false;
+    while (lexer->lookahead == ' ' || lexer->lookahead == '\t') {
+      lexer->advance(lexer, false);
+      indented = true;
+    }
+    folds = indented && !lexer->eof(lexer) && lexer->lookahead != '\r' && lexer->lookahead != '\n';
+  }
+  if (trail) {
+    lexer->result_symbol = folds ? TRAIL : LINE_TRAIL;
+  } else if (folds) {
+    lexer->mark_end(lexer);
+    lexer->result_symbol = FOLD;
+  } else {
+    lexer->result_symbol = EOL;
+  }
+  return valid_symbols[lexer->result_symbol];
 }

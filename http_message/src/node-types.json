@@ -25,22 +25,6 @@
     }
   },
   {
-    "type": "fold",
-    "named": true,
-    "fields": {
-      "value": {
-        "multiple": false,
-        "required": true,
-        "types": [
-          {
-            "type": "value",
-            "named": true
-          }
-        ]
-      }
-    }
-  },
-  {
     "type": "header",
     "named": true,
     "fields": {
@@ -66,7 +50,7 @@
       }
     },
     "children": {
-      "multiple": true,
+      "multiple": false,
       "required": false,
       "types": [
         {
@@ -246,9 +230,13 @@
     "named": true,
     "fields": {},
     "children": {
-      "multiple": false,
+      "multiple": true,
       "required": true,
       "types": [
+        {
+          "type": "fold",
+          "named": true
+        },
         {
           "type": "value_text",
           "named": true
@@ -264,6 +252,10 @@
   {
     "type": ":",
     "named": false
+  },
+  {
+    "type": "fold",
+    "named": true
   },
   {
     "type": "header_name",

@@ -15,7 +15,7 @@
 import { readFile, realpath, stat } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { ready, bundles, highlight, analyze, injectionNames, CSS, grammars } from "tree-sitter-http-web";
-import { Query } from "tree-sitter-http-web/dist/tree-sitter.js";
+import { Parser, Query } from "tree-sitter-http-web/dist/tree-sitter.js";
 import { bundled, load, shown } from "./sources.js";
 import * as grammar from "./grammar.js";
 import * as parse from "./parse.js";
@@ -326,12 +326,28 @@ for (const one of dialects) {
   // that is not a space or tab and ends on one — or on the line end it owns —
   // so a consumer takes a node's text and trims nothing. The document begins
   // wherever the text does, and a body's bytes are its own, indentation
-  // included; those two are the whole exception. Error documents recover
-  // however they can and are not held to it.
+  // included; those two are the whole exception. A `fold` is held to the
+  // opposite: it is a line break and indentation and nothing else, the bytes
+  // of a header's value that are not the value's, so a value with its folds
+  // cut out is one line. Error documents recover however they can and are
+  // not held to it.
   const bytes = new Set(["document", "body", "file_body"]);
   const blankEdged = (node, found = []) => {
-    if (node.isNamed && !bytes.has(node.type) && /^[ \t]|[ \t]$/.test(node.text)) {
-      found.push(`${node.type} at ${node.startPosition.row + 1}:${node.startPosition.column + 1} ${JSON.stringify(node.text)}`);
+    const where = `${node.type} at ${node.startPosition.row + 1}:${node.startPosition.column + 1} ${JSON.stringify(node.text)}`;
+    if (node.type === "fold") {
+      if (!/^\r?\n[ \t]+$/.test(node.text)) found.push(`${where} is not a break and indentation`);
+    } else if (node.isNamed && !bytes.has(node.type) && /^[ \t]|[ \t]$/.test(node.text)) {
+      found.push(where);
+    }
+    if (node.type === "value") {
+      let text = "", at = node.startIndex;
+      for (const child of node.children) {
+        if (child.type !== "fold") continue;
+        text += node.text.slice(at - node.startIndex, child.startIndex - node.startIndex);
+        at = child.endIndex;
+      }
+      text += node.text.slice(at - node.startIndex);
+      if (/[\r\n]/.test(text)) found.push(`${where} keeps a line break with its folds cut out`);
     }
     for (const child of node.children) blankEdged(child, found);
     return found;
@@ -424,6 +440,43 @@ for (const one of dialects) {
   for (const failure of total.failures) fail(`${dialect.name}: ${failure.name} — ${failure.diff}`);
   note(`corpus — ${total.passed} passing, ${total.failed} failing, ${total.skipped} skipped, `
      + `over ${files.length} files`);
+}
+
+// A header's value is its range with each `fold` cut out, and that is one
+// value however the lines break and indent: every writing below reads the
+// same, in both dialects, under either line end.
+{
+  const written = [
+    "max-age=31536000; includeSubDomains; preload",
+    "max-age=31536000; incl\n                           udeSubDomains; preload",
+    "max-age=31536000; \n                           includeSubDomains; preload",
+    "max-age=31536000; \n                            includeSubDomains; preload",
+    "max-age=31536000; \n                          includeSubDomains; preload",
+    "max-age=31536000; \n                                                     includeSubDomains; preload",
+    "max-age=31536000; \n\tincludeSubDomains; preload",
+  ];
+  const starts = { http: "GET https://example.com\n", http_message: "GET / HTTP/1.1\n" };
+  for (const [name, start] of Object.entries(starts)) {
+    if (!bundles.has(name)) continue;
+    const parser = new Parser();
+    parser.setLanguage(bundles.get(name).language);
+    for (const eol of ["\n", "\r\n"]) for (const value of written) {
+      const source = `${start}Strict-Transport-Security: ${value}\n`.replaceAll("\n", eol);
+      const tree = parser.parse(source);
+      const node = tree.rootNode.descendantsOfType("value")[0];
+      let read = "", at = node?.startIndex ?? 0;
+      for (const child of node?.children ?? []) {
+        if (child.type !== "fold") continue;
+        read += source.slice(at, child.startIndex);
+        at = child.endIndex;
+      }
+      read += source.slice(at, node?.endIndex ?? 0);
+      ok(!tree.rootNode.hasError && read === written[0],
+         `${name}: ${JSON.stringify(source)} reads ${JSON.stringify(read)}, not ${JSON.stringify(written[0])}`);
+      tree.delete();
+    }
+    parser.delete();
+  }
 }
 
 // The dialect difference the guide renders, computed rather than described.
