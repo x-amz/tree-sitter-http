@@ -7,7 +7,7 @@ import PackageDescription
 // the C target beneath it, which it re-exports.
 // Both targets sit at the repo root, so each must exclude what is not its
 // own or SPM warns about unhandled files. A new root-level file goes here.
-let unrelated = ["common", "web", "bindings/web", "node_modules", ".github", "README.md", "LICENSE", "tree-sitter.json", "package.json", "package-lock.json", "bindings/swift/TreeSitterHttpTests"]
+let unrelated = ["common", "web", "bindings/web", "node_modules", ".github", "README.md", "CONTRIBUTING.md", "LICENSE", "tree-sitter.json", "package.json", "package-lock.json", "bindings/swift/TreeSitterHttpTests", "bindings/swift/README.md"]
 
 let package = Package(
     name: "tree-sitter-http",
