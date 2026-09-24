@@ -114,7 +114,7 @@ queries the way it does on any page, with the browser's ordinary caching, so
 after a rebuild reload without the cache. `pages.yml` deploys the same
 `dist/` to GitHub Pages from `main`, as parse.req.to.
 
-What the build needs is in the root README under *What you need*.
+What the build needs is in the root README under *Setting up a development environment*.
 
 `package.json` here is the guide's own manifest: private, never published,
 with the web package and the grammar packages it reads tables from as its
